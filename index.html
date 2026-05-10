@@ -88,6 +88,30 @@
         </div>
 
         <div class="mb-4">
+          <label for="workDaysPerWeek" class="form-label text-muted small text-uppercase ls-1">
+            <i class="bi bi-calendar-week me-1"></i>Working Days / Week
+          </label>
+          <div class="input-group input-group-lg">
+            <span class="input-group-text bg-dark border-secondary text-accent">
+              <i class="bi bi-calendar-check"></i>
+            </span>
+            <input
+              type="number"
+              id="workDaysPerWeek"
+              class="form-control form-control-lg bg-dark border-secondary text-white"
+              placeholder="e.g. 5"
+              min="1"
+              max="7"
+              step="1"
+              value="5"
+              required
+            />
+            <span class="input-group-text bg-dark border-secondary text-muted">days/week</span>
+          </div>
+          <div class="form-text text-muted mt-1">How many days per week you work (e.g. 5 for Mon–Fri).</div>
+        </div>
+
+        <div class="mb-4">
           <label for="monthlyOutcome" class="form-label text-muted small text-uppercase ls-1">
             <i class="bi bi-receipt me-1"></i>Monthly Outcome
           </label>
@@ -151,7 +175,7 @@
         <i class="bi bi-currency-exchange"></i>
       </div>
       <h2 class="fw-bold mb-2">Set up your income</h2>
-      <p class="text-muted mb-4"><p style="color: #fffff!important;">Enter your hourly rate and monthly expenses to start watching<br />your money flow in real time.</p></p>
+      <p class="text-muted mb-4">Enter your hourly rate and monthly expenses to start watching<br />your money flow in real time.</p>
       <button class="btn btn-accent btn-lg fw-bold px-5" id="btnOpenSettings">
         <i class="bi bi-plus-circle me-2"></i>Configure Now
       </button>
@@ -206,6 +230,19 @@
             <div class="kpi-value" id="outcomeTotal">0.0000</div>
             <div class="kpi-currency" id="outcomeCurrency">PLN</div>
             <div class="kpi-sub" id="outcomeMonthly"></div>
+          </div>
+        </div>
+
+        <div class="col-12 col-md-4">
+          <div class="kpi-card kpi-monthly h-100">
+            <div class="kpi-header">
+              <span class="kpi-icon"><i class="bi bi-calendar2-check-fill"></i></span>
+              <span class="kpi-label">Monthly Income</span>
+              <span class="kpi-rate" id="monthlyIncomeRate">0.00 PLN/mo</span>
+            </div>
+            <div class="kpi-value" id="monthlyIncomeValue">0.00</div>
+            <div class="kpi-currency" id="monthlyIncomeCurrency">PLN</div>
+            <div class="kpi-sub" id="monthlyIncomeSub"></div>
           </div>
         </div>
 

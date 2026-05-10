@@ -158,6 +158,10 @@ html, body {
 .kpi-outcome::before { background: var(--danger); }
 .kpi-outcome { border-top: 3px solid var(--danger); }
 
+/* Monthly Income — amber/gold glow */
+.kpi-monthly::before { background: #f59e0b; }
+.kpi-monthly { border-top: 3px solid #f59e0b; }
+
 .kpi-header {
   display: flex;
   align-items: center;
@@ -168,6 +172,7 @@ html, body {
 .kpi-income .kpi-icon  { color: var(--accent); }
 .kpi-net    .kpi-icon  { color: #6c63ff; }
 .kpi-outcome .kpi-icon { color: var(--danger); }
+.kpi-monthly .kpi-icon { color: #f59e0b; }
 
 .kpi-label {
   font-size: .8rem;
@@ -187,6 +192,7 @@ html, body {
 .kpi-income .kpi-rate  { color: var(--accent); }
 .kpi-net    .kpi-rate  { color: #8b83ff; }
 .kpi-outcome .kpi-rate { color: var(--danger); }
+.kpi-monthly .kpi-rate { color: #f59e0b; }
 
 .kpi-value {
   font-size: clamp(2.2rem, 5vw, 3.2rem);
@@ -198,6 +204,7 @@ html, body {
 .kpi-income  .kpi-value { color: var(--accent); }
 .kpi-net     .kpi-value { color: #8b83ff; }
 .kpi-outcome .kpi-value { color: var(--danger); }
+.kpi-monthly .kpi-value { color: #f59e0b; }
 
 .kpi-currency {
   font-size: .95rem;
@@ -215,10 +222,12 @@ html, body {
 @keyframes flash-green  { 0%,100%{background:transparent} 50%{background:rgba(0,208,132,.08)} }
 @keyframes flash-purple { 0%,100%{background:transparent} 50%{background:rgba(108,99,255,.08)} }
 @keyframes flash-red    { 0%,100%{background:transparent} 50%{background:rgba(255,77,109,.08)} }
+@keyframes flash-amber  { 0%,100%{background:transparent} 50%{background:rgba(245,158,11,.08)} }
 
 .kpi-income.tick  { animation: flash-green  .4s ease; }
 .kpi-net.tick     { animation: flash-purple .4s ease; }
 .kpi-outcome.tick { animation: flash-red    .4s ease; }
+.kpi-monthly.tick { animation: flash-amber  .4s ease; }
 
 /* ── Ratio Bar ────────────────────────────────────────── */
 .ratio-card {
