@@ -1,0 +1,269 @@
+/* ═══════════════════════════════════════════════════════
+   Live Income Viewer — Custom Styles
+   ═══════════════════════════════════════════════════════ */
+
+:root {
+  --accent:       #00d084;
+  --accent-dim:   #00a868;
+  --danger:       #ff4d6d;
+  --bg:           #0f1117;
+  --bg-card:      #1a1d27;
+  --bg-card2:     #21253a;
+  --border:       rgba(255,255,255,.08);
+  --text:         #e8eaf6;
+  --text-muted:   #6c7293;
+}
+
+/* ── Base ─────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; }
+
+html, body {
+  height: 100%;
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── Utility ──────────────────────────────────────────── */
+.text-accent  { color: var(--accent) !important; }
+.bg-accent    { background-color: var(--accent) !important; }
+
+/* ── Navbar ───────────────────────────────────────────── */
+.navbar {
+  background: rgba(15,17,23,.95);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  z-index: 1030;
+}
+
+.navbar-brand { color: #fff !important; font-size: 1.1rem; letter-spacing: .02em; }
+
+.btn-outline-accent {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: transparent;
+  transition: background .2s, color .2s;
+}
+.btn-outline-accent:hover {
+  background: var(--accent);
+  color: #0f1117;
+}
+
+.btn-accent {
+  background: var(--accent);
+  color: #0f1117;
+  border: none;
+  transition: background .2s, transform .15s;
+  font-weight: 700;
+}
+.btn-accent:hover {
+  background: var(--accent-dim);
+  color: #0f1117;
+  transform: translateY(-1px);
+}
+
+/* ── Offcanvas (Settings) ─────────────────────────────── */
+.offcanvas {
+  background: #13161f;
+  border-left: 1px solid var(--border);
+  width: 380px !important;
+}
+.offcanvas-title { font-weight: 700; }
+.offcanvas-body  { padding: 2rem 1.5rem; }
+
+.offcanvas-body .form-label { color: #ffffff !important; }
+.offcanvas-body .form-text  { color: rgba(255,255,255,.55) !important; }
+
+.form-control:focus,
+.form-control:focus-visible {
+  border-color: var(--accent) !important;
+  box-shadow: 0 0 0 3px rgba(0,208,132,.15) !important;
+  outline: none;
+}
+
+/* ── Empty State ──────────────────────────────────────── */
+.empty-state {
+  max-width: 520px;
+  margin: 6rem auto;
+}
+.empty-icon {
+  font-size: 5rem;
+  color: var(--accent);
+  opacity: .7;
+  animation: float 3s ease-in-out infinite;
+}
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50%       { transform: translateY(-12px); }
+}
+
+/* ── Session badge ────────────────────────────────────── */
+.session-badge {
+  background: rgba(0,208,132,.12);
+  color: var(--accent);
+  font-size: .85rem;
+  letter-spacing: .08em;
+  padding: .45rem 1.1rem;
+  border-radius: 999px;
+  border: 1px solid rgba(0,208,132,.25);
+}
+
+/* Pulsing live dot */
+.pulse-dot {
+  font-size: .55rem;
+  vertical-align: middle;
+  animation: pulse 1.4s ease-in-out infinite;
+}
+@keyframes pulse {
+  0%, 100% { opacity: 1;   }
+  50%       { opacity: .2; }
+}
+
+/* ── KPI Cards ────────────────────────────────────────── */
+.kpi-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 1.25rem;
+  padding: 1.75rem 1.75rem 1.5rem;
+  position: relative;
+  overflow: hidden;
+  transition: transform .2s, box-shadow .2s;
+}
+.kpi-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  opacity: .06;
+  pointer-events: none;
+}
+.kpi-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 12px 40px rgba(0,0,0,.35);
+}
+
+/* Income — green glow */
+.kpi-income::before  { background: var(--accent); }
+.kpi-income { border-top: 3px solid var(--accent); }
+
+/* Net — blue/purple glow */
+.kpi-net::before     { background: #6c63ff; }
+.kpi-net { border-top: 3px solid #6c63ff; }
+
+/* Outcome — red glow */
+.kpi-outcome::before { background: var(--danger); }
+.kpi-outcome { border-top: 3px solid var(--danger); }
+
+.kpi-header {
+  display: flex;
+  align-items: center;
+  gap: .6rem;
+  margin-bottom: 1.2rem;
+}
+.kpi-icon        { font-size: 1.3rem; }
+.kpi-income .kpi-icon  { color: var(--accent); }
+.kpi-net    .kpi-icon  { color: #6c63ff; }
+.kpi-outcome .kpi-icon { color: var(--danger); }
+
+.kpi-label {
+  font-size: .8rem;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  color: var(--text-muted);
+  flex: 1;
+}
+.kpi-rate {
+  font-size: .75rem;
+  font-family: 'Courier New', monospace;
+  background: rgba(255,255,255,.05);
+  padding: .2rem .55rem;
+  border-radius: .4rem;
+  white-space: nowrap;
+}
+.kpi-income .kpi-rate  { color: var(--accent); }
+.kpi-net    .kpi-rate  { color: #8b83ff; }
+.kpi-outcome .kpi-rate { color: var(--danger); }
+
+.kpi-value {
+  font-size: clamp(2.2rem, 5vw, 3.2rem);
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  letter-spacing: -.02em;
+}
+.kpi-income  .kpi-value { color: var(--accent); }
+.kpi-net     .kpi-value { color: #8b83ff; }
+.kpi-outcome .kpi-value { color: var(--danger); }
+
+.kpi-currency {
+  font-size: .95rem;
+  color: var(--text-muted);
+  margin-top: .25rem;
+  font-weight: 600;
+}
+.kpi-sub {
+  font-size: .78rem;
+  color: var(--text-muted);
+  margin-top: .6rem;
+}
+
+/* Flash animation on tick */
+@keyframes flash-green  { 0%,100%{background:transparent} 50%{background:rgba(0,208,132,.08)} }
+@keyframes flash-purple { 0%,100%{background:transparent} 50%{background:rgba(108,99,255,.08)} }
+@keyframes flash-red    { 0%,100%{background:transparent} 50%{background:rgba(255,77,109,.08)} }
+
+.kpi-income.tick  { animation: flash-green  .4s ease; }
+.kpi-net.tick     { animation: flash-purple .4s ease; }
+.kpi-outcome.tick { animation: flash-red    .4s ease; }
+
+/* ── Ratio Bar ────────────────────────────────────────── */
+.ratio-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 1rem;
+  padding: 1.25rem 1.5rem;
+}
+.ratio-bar {
+  height: 10px;
+  border-radius: 999px;
+  background: rgba(255,77,109,.25);
+}
+.ratio-bar .progress-bar {
+  border-radius: 999px;
+  transition: width .6s ease;
+}
+
+/* ── Stat Cards ───────────────────────────────────────── */
+.stat-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: .9rem;
+  padding: 1rem .75rem;
+}
+.stat-label {
+  font-size: .7rem;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  color: var(--text-muted);
+  margin-bottom: .4rem;
+}
+.stat-value {
+  font-size: 1.1rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Scrollbar ────────────────────────────────────────── */
+::-webkit-scrollbar       { width: 6px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: #2a2e44; border-radius: 3px; }
+
+/* ── Responsive tweaks ────────────────────────────────── */
+@media (max-width: 576px) {
+  .kpi-value { font-size: 2rem; }
+  .offcanvas { width: 100vw !important; }
+}
