@@ -2,7 +2,7 @@
   "name": "Live Income Viewer",
   "short_name": "LiveIncome",
   "description": "Watch your money grow in real time — live income vs outcome dashboard.",
-  "start_url": "/index.html",
+  "start_url": "/LiveIncome/index.html",
   "display": "standalone",
   "background_color": "#0f1117",
   "theme_color": "#00d084",
