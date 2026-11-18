@@ -3,543 +3,156 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Maple Tracker – EXP/h i Mezo/h</title>
+<title>Maple EXP Tracker</title>
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 <style>
   :root{
-    --t1:rgba(255,255,255,.93); --t2:rgba(235,235,245,.62); --t3:rgba(235,235,245,.35);
-    --glass:rgba(24,24,30,.74); --card:rgba(255,255,255,.065); --card-b:rgba(255,255,255,.07); --hair:rgba(255,255,255,.09);
-    --accent:#0a84ff; --green:#30d158; --red:#ff453a; --orange:#ff9f0a; --yellow:#ffd60a; --hp:#ff6b6b; --mp:#5eb0ff; --exp:#c6e05a; --meso:#ffcc4d;
-    --font:-apple-system,BlinkMacSystemFont,"SF Pro Text","SF Pro Display","Helvetica Neue",system-ui,sans-serif;
+    --t1:rgba(255,255,255,.94); --t2:rgba(235,235,245,.62); --t3:rgba(235,235,245,.36);
+    --card:rgba(255,255,255,.07); --hair:rgba(255,255,255,.1);
+    --accent:#0a84ff; --green:#30d158; --red:#ff453a; --orange:#ff9f0a; --exp:#c6e05a;
+    --font:-apple-system,BlinkMacSystemFont,"SF Pro Text","Helvetica Neue",system-ui,sans-serif;
   }
   *{box-sizing:border-box}
-  html,body{margin:0;min-width:150px}
-  body{font:13px/1.35 var(--font);color:var(--t1);-webkit-font-smoothing:antialiased;min-height:100vh;
-       background:radial-gradient(1200px 700px at 15% 0%,#3a2f8f 0%,transparent 60%),
-                  radial-gradient(900px 600px at 90% 30%,#0d5a8c 0%,transparent 60%),
-                  radial-gradient(800px 600px at 40% 100%,#6b2a68 0%,transparent 55%),#0d1020;background-attachment:fixed}
-  .desk{display:flex;flex-wrap:wrap;gap:14px;padding:14px;align-items:flex-start}
+  html,body{margin:0;height:100%}
+  body{font:14px/1.4 var(--font);color:var(--t1);-webkit-font-smoothing:antialiased;
+       background:radial-gradient(1100px 700px at 10% 0%,#33307e 0%,transparent 60%),
+                  radial-gradient(900px 600px at 95% 40%,#0d527f 0%,transparent 60%),#0e1020;background-attachment:fixed}
   .hidden{display:none!important}
+  button{font:600 14px var(--font);color:var(--t1);background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.16);
+         border-radius:999px;padding:9px 18px;cursor:pointer;box-shadow:inset 0 1px 0 rgba(255,255,255,.12)}
+  button:hover{background:rgba(255,255,255,.17)}
+  button.primary{background:linear-gradient(180deg,#3b9bff,#0a6fe0);border-color:rgba(255,255,255,.25)}
+  button:disabled{opacity:.4;cursor:not-allowed}
 
-  /* ---- szklany panel ---- */
-  .glass{background:var(--glass);backdrop-filter:blur(40px) saturate(180%);-webkit-backdrop-filter:blur(40px) saturate(180%);
-         border:1px solid rgba(255,255,255,.14);border-radius:18px;
-         box-shadow:0 24px 60px rgba(0,0,0,.45),inset 0 1px 0 rgba(255,255,255,.14),inset 0 0 0 .5px rgba(255,255,255,.05)}
-  #col{width:200px;height:800px;flex:none;display:flex;flex-direction:column;overflow:hidden;position:relative}
-  .scroll{flex:1;overflow-y:auto;overflow-x:hidden;padding:0 8px 10px;scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.2) transparent}
-  .scroll::-webkit-scrollbar{width:6px}.scroll::-webkit-scrollbar-thumb{background:rgba(255,255,255,.18);border-radius:3px}
-
-  .head{padding:12px 10px 8px;display:flex;flex-direction:column;gap:8px;border-bottom:1px solid var(--hair)}
-  .titlerow{display:flex;align-items:center;gap:6px;min-width:0}
-  .titlerow h1{font-size:14px;font-weight:700;margin:0;letter-spacing:-.1px;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .status{display:flex;align-items:center;gap:5px;font-size:10.5px;font-weight:600;color:var(--t2);background:rgba(255,255,255,.08);
-          border:1px solid rgba(255,255,255,.1);border-radius:999px;padding:2px 7px 2px 6px;flex:none}
-  .dot{width:7px;height:7px;border-radius:50%;background:#8e8e93}
-  .dot.on{background:var(--red);box-shadow:0 0 6px var(--red);animation:pulse 2s infinite}
-  @keyframes pulse{50%{opacity:.45}}
-  .toolbar{display:flex;gap:5px}
-
-  /* ---- przyciski (szklane kapsułki) ---- */
-  .btn{font:600 12px var(--font);color:var(--t1);background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.14);border-radius:999px;
-       padding:6px 10px;cursor:pointer;white-space:nowrap;box-shadow:inset 0 1px 0 rgba(255,255,255,.12);transition:background .15s}
-  .btn:hover{background:rgba(255,255,255,.17)}
-  .btn:active{transform:scale(.97)}
-  .btn.primary{background:linear-gradient(180deg,#3b9bff,#0a6fe0);border-color:rgba(255,255,255,.25)}
-  .btn.primary:hover{background:linear-gradient(180deg,#52a7ff,#167be8)}
-  .btn.danger{color:#ff6961}
-  .btn.icon{padding:0;width:30px;height:30px;flex:none;display:inline-grid;place-items:center}
-  .btn.icon svg{display:block}
-  .btn.grow{flex:1;min-width:0}
-  .btn.active{background:var(--accent);border-color:rgba(255,255,255,.3)}
-  .btn:disabled{opacity:.4;cursor:not-allowed}
-
-  /* ---- karty i wiersze ---- */
-  .sect{font-size:11px;font-weight:600;color:var(--t2);margin:14px 4px 6px;letter-spacing:.1px}
-  .card{background:var(--card);border:1px solid var(--card-b);border-radius:12px;overflow:hidden}
-  .card + .card{margin-top:8px}
-  .hero{padding:10px 11px 11px;margin-top:10px}
-  .cap{font-size:11px;color:var(--t2);font-weight:600;display:flex;justify-content:space-between;gap:6px}
-  .big{font-size:clamp(18px,12vw,24px);font-weight:700;letter-spacing:-.5px;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-variant-numeric:tabular-nums}
-  .subtle{font-size:11px;color:var(--t2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-variant-numeric:tabular-nums}
-  .bar{height:6px;border-radius:3px;background:rgba(255,255,255,.1);margin:9px 0 5px;overflow:hidden}
-  .bar i{display:block;height:100%;width:0;border-radius:3px;background:linear-gradient(90deg,#9cc43a,var(--exp));transition:width .4s}
-  .row{display:flex;align-items:center;gap:6px;padding:8px 10px;min-height:34px;position:relative}
-  .row + .row::before{content:"";position:absolute;top:0;left:10px;right:0;height:1px;background:var(--hair)}
-  .row .lbl{flex:1;min-width:0;color:var(--t1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:flex;align-items:center;gap:6px}
-  .row .v{color:var(--t2);font-variant-numeric:tabular-nums;white-space:nowrap;text-align:right;min-width:0;overflow:hidden;text-overflow:ellipsis}
-  .row .v.strong{color:var(--t1);font-weight:600}
-  .row .v.bad{color:var(--red)}
-  .chip{width:8px;height:8px;border-radius:2.5px;flex:none}
-  .stack{display:block;padding:7px 10px}
-  .stack .lbl{font-size:11px;color:var(--t2)}
-  .stack .v{font-size:15px;font-weight:600;color:var(--t1);font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .stack small{display:block;font-size:10.5px;color:var(--t3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .stack + .stack{border-top:1px solid var(--hair)}
-  #cLast small{color:var(--t3);margin-left:4px;font-weight:400}
-
-  .mapin{width:100%;padding:6px 9px;border-radius:9px}
-  .mapin::placeholder{color:var(--t3)}
-  .hist{padding:7px 10px;position:relative}
-  .hist + .hist{border-top:1px solid var(--hair)}
-  .hist .h1{display:flex;align-items:center;gap:4px}
-  .hist .h1 b{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:600}
-  .hist .h2{font-size:10.5px;color:var(--t3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .hist .h3{font-size:11px;color:var(--t2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-variant-numeric:tabular-nums}
-  .hist .x.confirm{color:var(--red);font-weight:700}
-  canvas.chart{width:100%;height:84px;display:block}
-  .chartcard{padding:6px 6px 4px}
-  .tablewrap{max-height:220px;overflow:auto}
-  table{width:100%;border-collapse:collapse;font-size:11px;font-variant-numeric:tabular-nums}
-  th{position:sticky;top:0;background:rgba(40,40,48,.95);color:var(--t2);font-weight:600;font-size:10px}
-  th,td{padding:4px 5px;text-align:right;white-space:nowrap;border-bottom:1px solid var(--hair)}
-  th:first-child,td:first-child{text-align:left}
-  td.bad{color:var(--red)} td.ok{color:var(--green)}
-  .x{background:none;border:none;color:var(--t3);padding:0 2px;cursor:pointer;font-size:11px}
-  .x:hover{color:var(--red)}
-  .ctrlrow{display:flex;gap:5px;flex-wrap:wrap;margin-top:8px}
-  select.sel,input.sel{font:12px var(--font);color:var(--t1);background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.14);border-radius:8px;
-         padding:5px 8px;min-width:0;appearance:none;-webkit-appearance:none}
-  select.sel{padding-right:22px;background-image:linear-gradient(45deg,transparent 50%,var(--t2) 50%),linear-gradient(135deg,var(--t2) 50%,transparent 50%);
-         background-position:calc(100% - 11px) 52%,calc(100% - 7px) 52%;background-size:4px 4px;background-repeat:no-repeat}
-  select.sel option{background:#2a2a30;color:#fff}
-
-  /* ---- panel konfiguracji (szeroki) ---- */
-  #setupWin{flex:1 1 520px;max-width:900px;padding:0 0 12px;min-width:0}
-  #setupWin .head{flex-direction:row;align-items:center}
-  #setupWin .inner{padding:0 14px}
-  #previewWrap{position:relative;background:#000;border-radius:10px;overflow:hidden;border:1px solid rgba(255,255,255,.1);min-height:110px}
-  #preview{display:block;width:100%;cursor:crosshair}
-  #previewHint{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--t2);text-align:center;padding:16px;pointer-events:none}
-  .ocrgrid{display:grid;grid-template-columns:auto minmax(0,1fr);gap:8px 10px;align-items:center;padding:10px}
-  .ocrgrid canvas{max-width:100%;max-height:46px;image-rendering:pixelated;background:#fff;border-radius:4px;display:block}
-  .ocrtxt{font:11px ui-monospace,Menlo,monospace;color:var(--t2);word-break:break-all}
-  .tag{font-size:11px;font-weight:600;display:flex;align-items:center;gap:6px}
-  .help{font-size:12px;color:var(--t2);padding:10px 12px}
-  .help summary{cursor:pointer;color:var(--t1);font-weight:600}
-  .help ol{margin:8px 0 0 18px;padding:0}
+  /* ===== KROK 1 ===== */
+  #step1{max-width:980px;margin:0 auto;padding:28px 20px 40px}
+  #step1 h1{font-size:22px;margin:0 0 2px;letter-spacing:-.3px}
+  .stepinfo{color:var(--t2);margin-bottom:22px}
+  .panel{background:rgba(30,30,38,.6);backdrop-filter:blur(30px) saturate(170%);-webkit-backdrop-filter:blur(30px) saturate(170%);
+         border:1px solid rgba(255,255,255,.13);border-radius:16px;padding:16px 18px;margin-bottom:14px;
+         box-shadow:0 18px 50px rgba(0,0,0,.35),inset 0 1px 0 rgba(255,255,255,.1)}
+  .panel h2{font-size:15px;margin:0 0 10px;display:flex;align-items:center;gap:10px}
+  .num{width:24px;height:24px;border-radius:50%;background:var(--accent);display:inline-grid;place-items:center;font-size:13px;flex:none}
+  .num.done{background:var(--green)}
+  .hint{color:var(--t2);font-size:13px;margin:0 0 10px}
   .mono{font-family:ui-monospace,Menlo,monospace}
+  #previewWrap{position:relative;background:#000;border-radius:10px;overflow:hidden;border:1px solid rgba(255,255,255,.1);min-height:120px}
+  #preview{display:block;width:100%;cursor:crosshair;touch-action:none}
+  #previewHint{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--t2);text-align:center;padding:16px;pointer-events:none}
+  #testImg{max-width:100%;max-height:60px;image-rendering:pixelated;background:#fff;border-radius:6px;display:block;margin:4px 0 8px}
+  #testRes{font-size:16px;font-weight:600}
+  #testRes.ok{color:var(--green)} #testRes.bad{color:var(--red)}
+  #testRaw{color:var(--t3);font-size:12px}
+  .actions{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
 
-  #toast{position:absolute;left:8px;right:8px;bottom:10px;background:rgba(50,50,58,.92);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
-         border:1px solid rgba(255,255,255,.15);border-radius:12px;padding:8px 10px;font-size:12px;display:none;z-index:9;box-shadow:0 8px 24px rgba(0,0,0,.4)}
-
-  /* okno przeglądarki węższe niż kolumna: kolumna wypełnia całe okno */
-  @media (max-width:228px){
-    .desk{padding:0;gap:0}
-    #col{width:100vw;height:100vh;border-radius:0;border:none}
-  }
-  @media (max-width:190px){
-    .toolbar{flex-wrap:wrap}
-    #btnStart{flex:1 1 100%;order:-1}
-    .btn.icon{flex:1 1 0;width:auto}
-    .scroll{padding:0 6px 8px}
-    .head{padding:10px 8px 7px}
-    .row{padding:7px 8px;font-size:12px;gap:4px}
-    .row .lbl{gap:4px}
-    .chip{width:6px;height:6px}
-    .stack{padding:6px 8px}
-    .stack .v{font-size:14px}
-    .hero{padding:9px 9px 10px}
-  }
-  body.pip{background:#14151c;min-width:0}
-  body.pip #col{width:100vw;height:100vh;border-radius:0;border:none;box-shadow:none;background:rgba(30,30,36,.9)}
+  /* ===== KROK 2: pionowy pasek 80 px ===== */
+  #bar{position:fixed;left:0;top:0;width:80px;height:100vh;display:flex;flex-direction:column;gap:6px;padding:8px 6px;
+       background:rgba(22,22,28,.86);backdrop-filter:blur(30px) saturate(170%);-webkit-backdrop-filter:blur(30px) saturate(170%);
+       border-right:1px solid rgba(255,255,255,.12);box-shadow:inset -1px 0 0 rgba(255,255,255,.04),8px 0 30px rgba(0,0,0,.35);
+       overflow:hidden;user-select:none;text-align:center}
+  .blk{background:var(--card);border:1px solid rgba(255,255,255,.07);border-radius:10px;padding:6px 3px;flex:none}
+  .lbl{font-size:9px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--t2)}
+  .big{font-size:20px;font-weight:700;letter-spacing:-.5px;line-height:1.15;white-space:nowrap;font-variant-numeric:tabular-nums;color:var(--exp)}
+  .mid{font-size:15px;font-weight:700;line-height:1.2;white-space:nowrap;font-variant-numeric:tabular-nums}
+  .val{font-size:11.5px;font-weight:600;line-height:1.25;white-space:nowrap;font-variant-numeric:tabular-nums;overflow:hidden;text-overflow:ellipsis}
+  .sm{font-size:9.5px;color:var(--t2);line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-variant-numeric:tabular-nums}
+  .sm.up{color:var(--green)} .sm.down,.val.bad{color:var(--red)}
+  /* pionowy pasek postępu poziomu — zajmuje całą wolną wysokość */
+  .lvl{flex:1;min-height:60px;display:flex;flex-direction:column;align-items:center;gap:4px}
+  .track{flex:1;width:26px;border-radius:13px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.1);position:relative;overflow:hidden}
+  .fill{position:absolute;left:0;right:0;bottom:0;height:0;background:linear-gradient(0deg,#86b52c,var(--exp));transition:height .6s;
+        box-shadow:0 0 12px rgba(198,224,90,.45)}
+  .tbar{height:3px;border-radius:2px;background:rgba(255,255,255,.1);margin:4px 4px 0;overflow:hidden}
+  .tbar i{display:block;height:100%;width:0;background:var(--accent);transition:width 1s linear}
+  .btns{display:flex;gap:4px;flex:none}
+  .btns button{flex:1;padding:6px 0;font-size:13px;border-radius:9px}
+  #bState{font-size:9px;color:var(--t3);line-height:1.25;flex:none;min-height:11px}
+  #bState.bad{color:var(--red)}
+  body.pip{background:#16161c}
+  body.pip #bar{width:100vw}
 </style>
 </head>
 <body>
-<div class="desk" id="desk">
 
-  <!-- ========== KOLUMNA STATYSTYK (200 × 800) ========== -->
-  <div class="glass" id="col">
-    <div class="head">
-      <div class="titlerow">
-        <h1>Maple Tracker</h1>
-        <span class="status" title="Przechwytywanie ekranu"><span class="dot" id="capDot"></span><span id="capStatus">OFF</span></span>
-      </div>
-      <div class="toolbar">
-        <button class="btn icon primary" id="btnCapture" title="Udostępnij okno gry"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2.5"/><path d="M8 21h8M12 17v4M12 13V7.5M9 10l3-3 3 3"/></svg></button>
-        <button class="btn primary grow" id="btnStart" disabled title="Start / pauza">▶ Start</button>
-        <button class="btn icon hidden" id="btnNow" disabled title="Odczytaj teraz">⟳</button>
-        <button class="btn icon" id="btnSetupToggle" title="Konfiguracja regionów">⚙</button>
-        <button class="btn icon" id="btnPip" title="Pływające okno nad grą (200×800)">📌</button>
-      </div>
-      <input class="sel mapin" id="mapName" list="mapList" placeholder="📍 Nazwa mapy…" maxlength="40" autocomplete="off" title="Mapa, na której expisz — zapisze się w historii">
-      <datalist id="mapList"></datalist>
+<!-- ======================= KROK 1 ======================= -->
+<section id="step1">
+  <h1>Maple EXP Tracker</h1>
+  <div class="stepinfo">Krok 1 z 2 — udostępnij ekran i zaznacz pole EXP</div>
+
+  <div class="panel">
+    <h2><span class="num" id="n1">1</span>Udostępnij okno gry</h2>
+    <div class="actions">
+      <button class="primary" id="btnShare">Udostępnij ekran</button>
+      <span class="hint" id="shareInfo" style="margin:0">Wybierz okno MapleStory.</span>
     </div>
-
-    <div class="scroll">
-      <!-- najważniejsze -->
-      <div class="card hero" title="EXP na godzinę z ostatnich minut">
-        <div class="cap"><span>EXP / h</span><span id="cExpWin"></span></div>
-        <div class="big" id="cExpH">—</div>
-        <div class="subtle" id="cExpSub">—</div>
-        <div class="bar"><i id="cLvFill"></i></div>
-        <div class="cap"><span>Do poziomu</span><span id="cLvPct" style="font-weight:400"></span></div>
-        <div class="big" style="font-size:clamp(16px,9vw,18px)" id="cEta">—</div>
-      </div>
-
-      <div class="card" style="margin-top:8px">
-        <div class="row"><span class="lbl"><span class="chip" style="background:var(--hp)"></span>HP/h</span><span class="v strong" id="cHpH">—</span></div>
-        <div class="row"><span class="lbl"><span class="chip" style="background:var(--mp)"></span>MP/h</span><span class="v strong" id="cMpH">—</span></div>
-        <div class="row"><span class="lbl"><span class="chip" style="background:var(--meso)"></span>Mezo/h</span><span class="v strong" id="cMesoH">—</span></div>
-      </div>
-
-      <div class="card" style="margin-top:8px">
-        <div class="row"><span class="lbl">Ostatni</span><span class="v" id="cLast">—</span></div>
-        <div class="row"><span class="lbl">Następny</span><span class="v" id="nextIn">—</span></div>
-      </div>
-
-      <!-- szczegóły -->
-      <div class="sect">EXP</div>
-      <div class="card">
-        <div class="stack"><div class="lbl">EXP / h — cała sesja</div><div class="v" id="sExpH">—</div><small id="sExpPctH">—</small></div>
-        <div class="stack"><div class="lbl">EXP / h — <span class="wlbl">30</span> min</div><div class="v" id="sExpHw">—</div><small id="sExpPctHw">—</small></div>
-        <div class="stack"><div class="lbl">Zdobyty EXP</div><div class="v" id="sExpTot">—</div><small id="sLvl">—</small></div>
-        <div class="stack"><div class="lbl">Następny poziom</div><div class="v" id="sEta">—</div><small id="sReq">—</small></div>
-      </div>
-
-      <div class="sect">Mezo</div>
-      <div class="card">
-        <div class="stack"><div class="lbl">Mezo / h — cała sesja</div><div class="v" id="sMesoH">—</div><small id="sMesoGross">—</small></div>
-        <div class="stack"><div class="lbl">Mezo / h — <span class="wlbl">30</span> min</div><div class="v" id="sMesoHw">—</div></div>
-        <div class="stack"><div class="lbl">Zdobyte mezo</div><div class="v" id="sMesoTot">—</div><small id="sMesoNow">—</small></div>
-      </div>
-
-      <div class="sect">HP / MP</div>
-      <div class="card">
-        <div class="stack"><div class="lbl">HP zużyte / h</div><div class="v" id="sHpLost">—</div><small id="sHpLostSub">—</small></div>
-        <div class="stack"><div class="lbl">HP teraz</div><div class="v" id="sHpNow">—</div><small id="sHpNowSub">—</small></div>
-        <div class="stack"><div class="lbl">MP zużyte / h</div><div class="v" id="sMpLost">—</div><small id="sMpLostSub">—</small></div>
-        <div class="stack"><div class="lbl">MP teraz</div><div class="v" id="sMpNow">—</div><small id="sMpNowSub">—</small></div>
-      </div>
-
-      <div class="sect">Sesja</div>
-      <div class="card">
-        <div class="stack"><div class="lbl">Czas</div><div class="v" id="sTime">—</div><small id="sSamples">—</small></div>
-      </div>
-
-      <div class="sect">Wykresy</div>
-      <div class="card chartcard"><canvas class="chart" id="chartExp"></canvas></div>
-      <div class="card chartcard"><canvas class="chart" id="chartMeso"></canvas></div>
-
-      <div class="sect">Pomiary</div>
-      <div class="card">
-        <div class="tablewrap">
-          <table>
-            <thead><tr><th>Czas</th><th>+EXP</th><th>+Mezo</th><th></th><th></th></tr></thead>
-            <tbody id="samples"></tbody>
-          </table>
-        </div>
-      </div>
-
-      <div class="ctrlrow">
-        <select class="sel" id="window" title="Okno dla „aktualnych” statystyk" style="flex:1">
-          <option value="10">Okno 10 min</option>
-          <option value="30" selected>Okno 30 min</option>
-          <option value="60">Okno 60 min</option>
-        </select>
-      </div>
-      <div class="ctrlrow">
-        <button class="btn primary grow" id="btnSaveHist" title="Zapisz podsumowanie sesji w historii">Zapisz w historii</button>
-      </div>
-      <div class="ctrlrow">
-        <button class="btn grow" id="btnCopy">Kopiuj</button>
-        <button class="btn grow" id="btnCsv">CSV</button>
-        <button class="btn grow danger" id="btnReset">Reset</button>
-      </div>
-
-      <div class="sect">Mapy (średnio)</div>
-      <div class="card" id="mapsCard"><div class="row"><span class="lbl" style="color:var(--t3)">Brak zapisanych sesji</span></div></div>
-
-      <div class="sect">Historia</div>
-      <div class="card" id="histCard"><div class="row"><span class="lbl" style="color:var(--t3)">Brak zapisanych sesji</span></div></div>
-      <div id="storeInfo" style="margin:8px 4px 0;font-size:10px;color:var(--t3)"></div>
-    </div>
-    <div id="toast"></div>
   </div>
 
-  <!-- ========== KONFIGURACJA (szeroka, otwierana ⚙) ========== -->
-  <div class="glass hidden" id="setupWin">
-    <div class="head">
-      <h1 style="font-size:14px;margin:0;flex:1">Konfiguracja regionów</h1>
-      <button class="btn" id="btnSetupClose">Gotowe</button>
+  <div class="panel">
+    <h2><span class="num" id="n2">2</span>Zaznacz pole EXP</h2>
+    <p class="hint">Przeciągnij prostokąt <b>ciasno</b> wokół liczby i procentu, np. <span class="mono">383.963[63.53%]</span> — bez napisu „EXP” i bez paska.</p>
+    <div id="previewWrap">
+      <canvas id="preview"></canvas>
+      <div id="previewHint">Najpierw udostępnij ekran.</div>
     </div>
-    <div class="inner">
-      <div class="sect">Wybierz region i przeciągnij prostokąt na podglądzie</div>
-      <div class="ctrlrow" style="margin:0 0 8px">
-        <button class="btn" id="btnSelExp" disabled><span class="chip" style="background:var(--exp);display:inline-block;margin-right:5px"></span>EXP</button>
-        <button class="btn" id="btnSelMeso" disabled><span class="chip" style="background:var(--meso);display:inline-block;margin-right:5px"></span>Mezo</button>
-        <button class="btn" id="btnSelHp" disabled><span class="chip" style="background:var(--hp);display:inline-block;margin-right:5px"></span>HP</button>
-        <button class="btn" id="btnSelMp" disabled><span class="chip" style="background:var(--mp);display:inline-block;margin-right:5px"></span>MP</button>
-        <button class="btn" id="btnClearMeso" disabled>Bez mezo</button>
-        <button class="btn" id="btnClearHpMp" disabled>Bez HP/MP</button>
-      </div>
-      <div id="previewWrap">
-        <canvas id="preview"></canvas>
-        <div id="previewHint">Kliknij „Udostępnij” i wybierz okno MapleStory.</div>
-      </div>
+  </div>
 
-      <div class="sect">Odczyt OCR</div>
-      <div class="card">
-        <div class="ocrgrid">
-          <span class="tag"><span class="chip" style="background:var(--exp)"></span>EXP</span><div><canvas id="procExp" height="1"></canvas><div class="ocrtxt" id="ocrExpTxt">—</div></div>
-          <span class="tag"><span class="chip" style="background:var(--meso)"></span>Mezo</span><div><canvas id="procMeso" height="1"></canvas><div class="ocrtxt" id="ocrMesoTxt">—</div></div>
-          <span class="tag"><span class="chip" style="background:var(--hp)"></span>HP</span><div><canvas id="procHp" height="1"></canvas><div class="ocrtxt" id="ocrHpTxt">—</div></div>
-          <span class="tag"><span class="chip" style="background:var(--mp)"></span>MP</span><div><canvas id="procMp" height="1"></canvas><div class="ocrtxt" id="ocrMpTxt">—</div></div>
-        </div>
-      </div>
-      <div class="ctrlrow" style="align-items:center">
-        <button class="btn primary" id="btnTest" disabled>Testowy odczyt</button>
-        <select class="sel" id="thrMode" title="Próg binaryzacji">
-          <option value="auto">Próg: auto</option>
-          <option value="manual">Próg: ręczny</option>
-        </select>
-        <input class="sel" type="number" id="thrVal" value="150" min="0" max="255" style="width:70px" disabled>
-        <label style="display:flex;align-items:center;gap:5px;color:var(--t2)"><input type="checkbox" id="invert"> odwróć kolory</label>
-      </div>
-
-      <div class="sect">Interwały</div>
-      <div class="ctrlrow" style="margin:0;align-items:center">
-        <span style="color:var(--t2)">EXP / mezo</span>
-        <select class="sel" id="interval">
-          <option value="30">co 30 s</option>
-          <option value="60">co 1 min</option>
-          <option value="120" selected>co 2 min</option>
-          <option value="180">co 3 min</option>
-          <option value="300">co 5 min</option>
-          <option value="600">co 10 min</option>
-        </select>
-        <span style="color:var(--t2);margin-left:8px">HP / MP</span>
-        <select class="sel" id="hpmpInterval">
-          <option value="1">co 1 s</option>
-          <option value="2">co 2 s</option>
-          <option value="3" selected>co 3 s</option>
-          <option value="5">co 5 s</option>
-          <option value="10">co 10 s</option>
-        </select>
-        <span class="ocrtxt" id="hpmpInfo"></span>
-      </div>
-
-      <div class="card" style="margin-top:12px">
-        <details class="help">
-          <summary>Jak używać</summary>
-          <ol>
-            <li>Kliknij <b>Udostępnij</b> i wybierz okno MapleStory.</li>
-            <li><b>EXP</b>: zaznacz ciasno <span class="mono">200.287[39.24%]</span> (bez napisu „EXP”).</li>
-            <li><b>Mezo</b>: liczba mezo w otwartym ekwipunku (I). Bez ekwipunku kliknij „Bez mezo”.</li>
-            <li><b>HP / MP</b>: sam fragment w nawiasach, np. <span class="mono">[307/609]</span>.</li>
-            <li><b>Testowy odczyt</b> pokazuje, co odczytał OCR. Jeśli źle — zaznacz ciaśniej albo zmień próg.</li>
-            <li>Kliknij <b>Gotowe</b>, potem <b>▶ Start</b>. Kolumnę statystyk możesz otworzyć w pływającym oknie 📌 nad grą albo zwęzić okno przeglądarki.</li>
-          </ol>
-          <p style="margin:8px 0 0">HP/MP odczytywane są co kilka sekund; „zużyte” to suma spadków między odczytami (dolne oszacowanie). Awans i śmierć wykrywane są automatycznie, błędne odczyty OCR odrzucane. Regiony i sesja zapisują się w przeglądarce.</p>
-        </details>
-      </div>
+  <div class="panel">
+    <h2><span class="num" id="n3">3</span>Sprawdź odczyt</h2>
+    <canvas id="testImg" width="1" height="1"></canvas>
+    <div id="testRes">—</div>
+    <div id="testRaw"></div>
+    <div class="actions" style="margin-top:12px">
+      <button id="btnTest" disabled>Odczytaj ponownie</button>
+      <button class="primary" id="btnNext" disabled>Dalej → statystyki</button>
     </div>
+  </div>
+</section>
+
+<!-- ======================= KROK 2 ======================= -->
+<div id="bar" class="hidden">
+  <div class="blk" title="EXP na godzinę z ostatnich 10 minut">
+    <div class="lbl">EXP/h</div>
+    <div class="big" id="bRate">—</div>
+    <div class="sm" id="bRatePct">—</div>
+  </div>
+  <div class="blk" title="Czas do następnego poziomu przy obecnym tempie">
+    <div class="lbl">Do lvl</div>
+    <div class="mid" id="bEta">—</div>
+    <div class="sm" id="bMissing">—</div>
+  </div>
+  <div class="lvl" title="Postęp poziomu">
+    <div class="lbl" id="bPct" style="color:var(--exp)">—</div>
+    <div class="track"><div class="fill" id="bFill"></div></div>
+  </div>
+  <div class="blk" title="Najnowszy pomiar">
+    <div class="lbl">Nowy</div>
+    <div class="val" id="bNew">—</div>
+    <div class="sm" id="bNewPct">—</div>
+    <div class="sm" id="bNewT">&nbsp;</div>
+    <div class="sm" id="bNewGain">&nbsp;</div>
+  </div>
+  <div class="blk" title="Poprzedni pomiar">
+    <div class="lbl">Poprzedni</div>
+    <div class="val" id="bPrev">—</div>
+    <div class="sm" id="bPrevPct">—</div>
+    <div class="sm" id="bPrevT">&nbsp;</div>
+  </div>
+  <div class="blk" title="Do następnego pomiaru (co minutę)">
+    <div class="lbl">Następny</div>
+    <div class="mid" id="bNext">—</div>
+    <div class="tbar"><i id="bNextFill"></i></div>
+  </div>
+  <div id="bState"></div>
+  <div class="btns">
+    <button id="bPip" title="Pływające okno nad grą">📌</button>
+    <button id="bBack" title="Wróć do kroku 1">⚙</button>
   </div>
 </div>
-<video id="video" autoplay muted playsinline style="display:none"></video>
+
+<video id="video" autoplay muted playsinline class="hidden"></video>
 
 <script>
-// ====================== Stan ======================
-let pipWin = null; // pływające okno (Document Picture-in-Picture)
-const $ = id => document.getElementById(id) || (pipWin && pipWin.document.getElementById(id));
-const uiVisible = () => !!pipWin || !document.hidden;
-const CAP_BTNS=['btnSelExp','btnSelMeso','btnClearMeso','btnSelHp','btnSelMp','btnClearHpMp','btnTest','btnStart','btnNow'];
-const LS_KEY = 'mapleTracker.v1';
-let stream = null, track = null, imageCapture = null;
-let lastFrame = null;           // ImageBitmap / canvas z ostatnią klatką
-let selecting = null;           // 'exp' | 'meso' | null
-let dragStart = null, dragRect = null;
-let running = false, timer = null, hpmpTimer = null, nextAt = 0;
-// Jeden worker OCR, więc odczyty idą po kolei przez prostą kolejkę
-let lockChain = Promise.resolve(), lockDepth = 0;
-function withLock(fn){ lockDepth++; const p=lockChain.then(fn).finally(()=>lockDepth--); lockChain=p.catch(()=>{}); return p; }
-// Timer w Web Workerze: Chrome mocno spowalnia zwykłe timery w zminimalizowanych kartach
-function makeTicker(ms, fn){
-  try{
-    const blob=new Blob(['let h;onmessage=e=>{clearInterval(h);if(e.data>0)h=setInterval(()=>postMessage(0),e.data)}'],{type:'text/javascript'});
-    const url=URL.createObjectURL(blob), w=new Worker(url);
-    w.onmessage=()=>fn(); w.postMessage(ms);
-    return { stop(){ try{w.postMessage(0); w.terminate(); URL.revokeObjectURL(url);}catch(e){} } };
-  }catch(e){ const id=setInterval(fn,ms); return { stop(){ clearInterval(id); } }; }
-}
-function newVital(){ return { lost:0, gained:0, ms:0, last:null, knownMax:null, pendingMax:null, cur:null, max:null, reads:0, rejected:0, buckets:[] }; }
-let worker = null;
-
-// ====================== Zapis: cookies (z zapasowym localStorage) ======================
-// Chrome nie zapisuje cookies dla stron otwartych z pliku (file://) — wtedy używamy localStorage.
-// Duże dane (historia) dzielimy na kawałki po ~3.8 KB, bo jedno cookie mieści ok. 4 KB.
-const COOKIE_MAX_AGE = 400*86400; // Chrome i tak ogranicza ważność cookies do 400 dni
-function setCookie(n,v){ document.cookie=`${n}=${v};max-age=${COOKIE_MAX_AGE};path=/;SameSite=Lax`; }
-function getCookie(n){ const m=document.cookie.match(new RegExp('(?:^|; )'+n+'=([^;]*)')); return m?m[1]:null; }
-function delCookie(n){ document.cookie=`${n}=;max-age=0;path=/;SameSite=Lax`; }
-const cookiesOK=(()=>{ try{ setCookie('mt_test','1'); const ok=getCookie('mt_test')==='1'; delCookie('mt_test'); return ok; }catch(e){ return false; } })();
-function cookieWrite(name,obj){
-  const enc=encodeURIComponent(JSON.stringify(obj)), size=3800, n=Math.max(1,Math.ceil(enc.length/size));
-  const old=+(getCookie(`mt_${name}_n`)||0);
-  for(let i=0;i<n;i++) setCookie(`mt_${name}_${i}`, enc.slice(i*size,(i+1)*size));
-  for(let i=n;i<old;i++) delCookie(`mt_${name}_${i}`);
-  setCookie(`mt_${name}_n`, n);
-  return JSON.stringify(cookieRead(name))===JSON.stringify(obj); // false = przekroczony limit cookies
-}
-function cookieRead(name){
-  const n=+(getCookie(`mt_${name}_n`)||0); if(!n) return null;
-  let s=''; for(let i=0;i<n;i++){ const c=getCookie(`mt_${name}_${i}`); if(c==null) return null; s+=c; }
-  try{ return JSON.parse(decodeURIComponent(s)); }catch(e){ return null; }
-}
-const store={
-  kind: cookiesOK ? 'cookies' : 'localStorage',
-  write(name,obj){
-    let ok=false;
-    if(cookiesOK) ok=cookieWrite(name,obj);
-    // kopia w localStorage zawsze — na wypadek limitu cookies albo ich wyczyszczenia
-    try{ localStorage.setItem('mapleTracker.'+name, JSON.stringify(obj)); }catch(e){}
-    return ok || !cookiesOK;
-  },
-  read(name){
-    if(cookiesOK){ const v=cookieRead(name); if(v!=null) return v; }
-    try{ return JSON.parse(localStorage.getItem('mapleTracker.'+name)); }catch(e){ return null; }
-  }
-};
-// Ustawienia trzymane w cookies (sesja z surowymi pomiarami zostaje w localStorage — jest za duża na cookies)
-const CFG_KEYS=['map','regions','thrMode','thrVal','invert','interval','hpmpInterval','windowMin','ui'];
-let lastCfg='';
-
-const state = load() || {
-  regions: { exp: null, meso: null, hp: null, mp: null },  // znormalizowane {x,y,w,h} 0..1
-  hpmpInterval: 3, vitals: { hp: newVital(), mp: newVital() },
-  thrMode: 'auto', thrVal: 150, invert: false,
-  interval: 120, windowMin: 30,
-  samples: [],      // {t, rawExp, rawMeso, exp, pct, req, expGain, event, okExp, meso, mesoGain, okMeso}
-  levelUps: 0, deaths: 0,
-};
-{ const cfg=store.read('cfg'); if(cfg && typeof cfg==='object') for(const k of CFG_KEYS) if(k in cfg) state[k]=cfg[k]; }
-// Historia sesji: [mapa, start(s), czas(s), exp, exp/h, awanse, śmierci, mezo, mezo/h, hp/h, mp/h, pomiary]
-let hist = store.read('hist'); if(!Array.isArray(hist)) hist=[];
-
-function migrate(){
-  state.regions.hp ??= null; state.regions.mp ??= null;
-  state.hpmpInterval ??= 3;
-  state.vitals ??= { hp:newVital(), mp:newVital() };
-  state.ui ??= { setup:false, detail:false };
-  state.map ??= '';
-}
-function save(){
-  try{ localStorage.setItem(LS_KEY, JSON.stringify(state)); }catch(e){}
-  const cfg={}; for(const k of CFG_KEYS) cfg[k]=state[k];
-  const s=JSON.stringify(cfg); if(s!==lastCfg){ lastCfg=s; store.write('cfg',cfg); }
-}
-function load(){ try{ return JSON.parse(localStorage.getItem(LS_KEY)); }catch(e){ return null; } }
-
-// ====================== Formatowanie ======================
-const nf = new Intl.NumberFormat('pl-PL');
-function fmt(n){ if(n==null||!isFinite(n)) return '—'; return nf.format(Math.round(n)); }
-function fmtShort(n){
-  if(n==null||!isFinite(n)) return '—';
-  const a=Math.abs(n);
-  if(a>=1e9) return (n/1e9).toFixed(2)+' mld';
-  if(a>=1e6) return (n/1e6).toFixed(2)+' mln';
-  if(a>=1e4) return (n/1e3).toFixed(1)+' tys.';
-  return fmt(n);
-}
-function fmtDur(ms){
-  if(ms==null||!isFinite(ms)||ms<0) return '—';
-  const s=Math.round(ms/1000), h=Math.floor(s/3600), m=Math.floor(s%3600/60), sec=s%60;
-  return h? `${h} h ${String(m).padStart(2,'0')} min` : `${m} min ${String(sec).padStart(2,'0')} s`;
-}
-function fmtDurShort(ms){
-  const s=Math.round(ms/1000), h=Math.floor(s/3600), m=Math.floor(s%3600/60);
-  return h? `${h}h ${String(m).padStart(2,'0')}m` : `${m}m ${String(s%60).padStart(2,'0')}s`;
-}
-function hhmm(t){ return new Date(t).toLocaleTimeString('pl-PL',{hour:'2-digit',minute:'2-digit',second:'2-digit'}); }
-function toast(msg){ const el=$('toast'); el.textContent=msg; el.style.display='block'; clearTimeout(toast._t); toast._t=setTimeout(()=>el.style.display='none',2500); }
-
-// ====================== Przechwytywanie ekranu ======================
-$('btnCapture').onclick = async () => {
-  try{
-    stream = await navigator.mediaDevices.getDisplayMedia({ video:{ frameRate: 5 }, audio:false });
-  }catch(e){ toast('Nie udostępniono ekranu: '+e.message); return; }
-  track = stream.getVideoTracks()[0];
-  try{ track.contentHint = 'text'; }catch(e){}
-  $('video').srcObject = stream;
-  imageCapture = ('ImageCapture' in window) ? new ImageCapture(track) : null;
-  track.addEventListener('ended', onCaptureEnded);
-  setCapUI(true);
-  await new Promise(r => setTimeout(r, 600));
-  await grab();
-  drawPreview();
-  CAP_BTNS.forEach(id=>$(id).disabled=false);
-  if(!state.regions.exp){ showWin('setup',true); setSelecting('exp'); toast('Przeciągnij prostokąt wokół tekstu EXP'); }
-  // odświeżaj podgląd co 2 s, gdy karta jest widoczna
-  clearInterval(window._pv);
-  window._pv = setInterval(async()=>{ if(!document.hidden && lockDepth===0 && state.ui.setup){ await grab(); drawPreview(); } }, 2000);
-};
-
-function onCaptureEnded(){
-  setCapUI(false);
-  stopSession();
-  stream = null; track = null; imageCapture = null;
-  CAP_BTNS.forEach(id=>$(id).disabled=true);
-  toast('Przechwytywanie zakończone');
-}
-function setCapUI(on){ $('capDot').classList.toggle('on',on); $('capStatus').textContent = on ? 'REC' : 'OFF'; $('btnCapture').classList.toggle('hidden',on); $('btnNow').classList.toggle('hidden',!on); $('previewHint').style.display = on?'none':'flex'; }
-
-async function grab(){
-  if(!track || track.readyState!=='live') return null;
-  try{
-    if(imageCapture){ lastFrame = await imageCapture.grabFrame(); return lastFrame; }
-  }catch(e){ /* fallback poniżej */ }
-  const v=$('video');
-  if(!v.videoWidth) return null;
-  const c=document.createElement('canvas'); c.width=v.videoWidth; c.height=v.videoHeight;
-  c.getContext('2d').drawImage(v,0,0); lastFrame=c; return c;
-}
-
-// ====================== Podgląd i zaznaczanie ======================
-const pv = $('preview'), pctx = pv.getContext('2d');
-function drawPreview(){
-  if(!lastFrame) return;
-  const W=lastFrame.width, H=lastFrame.height;
-  if(pv.width!==W||pv.height!==H){ pv.width=W; pv.height=H; }
-  pctx.drawImage(lastFrame,0,0);
-  const lw=Math.max(2,W/500);
-  const drawR=(r,col,label)=>{ if(!r) return; pctx.strokeStyle=col; pctx.lineWidth=lw; pctx.strokeRect(r.x*W,r.y*H,r.w*W,r.h*H); pctx.fillStyle=col; pctx.font=`bold ${Math.max(12,W/90)}px sans-serif`; pctx.fillText(label,r.x*W,r.y*H-4); };
-  drawR(state.regions.exp,'#c9d64a','EXP');
-  drawR(state.regions.meso,'#f2b84b','MEZO');
-  drawR(state.regions.hp,'#e2524a','HP');
-  drawR(state.regions.mp,'#3f8fe0','MP');
-  if(dragRect) drawR(dragRect, {exp:'#c9d64a',meso:'#f2b84b',hp:'#e2524a',mp:'#3f8fe0'}[selecting],'…');
-}
-function setSelecting(kind){
-  selecting = (selecting===kind)?null:kind;
-  $('btnSelExp').classList.toggle('active',selecting==='exp');
-  $('btnSelMeso').classList.toggle('active',selecting==='meso');
-  $('btnSelHp').classList.toggle('active',selecting==='hp');
-  $('btnSelMp').classList.toggle('active',selecting==='mp');
-}
-$('btnSelExp').onclick=()=>setSelecting('exp');
-$('btnSelMeso').onclick=()=>setSelecting('meso');
-$('btnSelHp').onclick=()=>setSelecting('hp');
-$('btnSelMp').onclick=()=>setSelecting('mp');
-$('btnClearHpMp').onclick=()=>{ state.regions.hp=null; state.regions.mp=null; save(); drawPreview(); restartHpmp(); render(); toast('HP/MP nie będą liczone'); };
-$('btnClearMeso').onclick=()=>{ state.regions.meso=null; save(); drawPreview(); toast('Mezo nie będzie liczone'); };
-
-function evPos(e){ const r=pv.getBoundingClientRect(); return { x:(e.clientX-r.left)/r.width, y:(e.clientY-r.top)/r.height }; }
-pv.addEventListener('mousedown',e=>{ if(!selecting||!lastFrame) return; dragStart=evPos(e); dragRect=null; });
-pv.addEventListener('mousemove',e=>{ if(!dragStart) return; const p=evPos(e);
-  dragRect={x:Math.min(p.x,dragStart.x),y:Math.min(p.y,dragStart.y),w:Math.abs(p.x-dragStart.x),h:Math.abs(p.y-dragStart.y)}; drawPreview(); });
-window.addEventListener('mouseup',async()=>{
-  if(!dragStart) return; dragStart=null;
-  if(dragRect && dragRect.w>0.003 && dragRect.h>0.003){
-    state.regions[selecting]=dragRect; save();
-    const k=selecting; setSelecting(k); // wyłącz tryb
-    dragRect=null; drawPreview();
-    if(k==='hp'||k==='mp'){ state.vitals[k]=newVital(); save(); restartHpmp(); }
-    await testRead();
-  } else { dragRect=null; drawPreview(); }
-});
-
-// ====================== Przetwarzanie obrazu ======================
-const SCALE = 4;
-
+// ====================== Biblioteka OCR (wycinanie nawiasów, binaryzacja, parsowanie) ======================
 // Wycinek regionu w natywnej rozdzielczości
 function getCrop(frame, region){
   const W=frame.width, H=frame.height;
@@ -601,10 +214,9 @@ function binarize(src, x0, x1){
     col[i]=isBracketColor(r,g,b)?1:0;
     if(!col[i]) vals.push(lum[i]);
   }
-  const thr = state.thrMode==='manual' ? +state.thrVal : otsu(vals);
+  const thr = otsu(vals);
   let bright=0; for(const v of vals) if(v>thr) bright++;
   let textIsBright = bright < vals.length/2;
-  if(state.invert) textIsBright=!textIsBright;
   for(let i=0;i<n;i++){
     const isText = !col[i] && (textIsBright ? lum[i]>thr : lum[i]<=thr);
     const v=isText?0:255; d[i*4]=d[i*4+1]=d[i*4+2]=v; d[i*4+3]=255;
@@ -636,27 +248,7 @@ function otsu(lum){
     if(between>best){best=between;thr=t;} }
   return thr;
 }
-$('thrMode').onchange=e=>{ state.thrMode=e.target.value; $('thrVal').disabled=state.thrMode!=='manual'; save(); };
-$('thrVal').onchange=e=>{ state.thrVal=+e.target.value; save(); };
-$('invert').onchange=e=>{ state.invert=e.target.checked; save(); };
 
-// ====================== OCR ======================
-async function getWorker(){
-  if(worker) return worker;
-  if(!window.Tesseract) throw new Error('Nie załadowano Tesseract.js (brak internetu?)');
-  $('capStatus').textContent='OCR…';
-  worker = await Tesseract.createWorker('eng', 1);
-  $('capStatus').textContent= track? 'REC':'OFF';
-  return worker;
-}
-async function ocr(canvas, whitelist){
-  const w=await getWorker();
-  await w.setParameters({ tessedit_char_whitelist: whitelist, tessedit_pageseg_mode: '7' });
-  const { data } = await w.recognize(canvas);
-  return data.text.trim();
-}
-
-// ---- Parsowanie ----
 const GROUPED=/^\d{1,3}([.,]\d{3})+$/;
 
 // Liczba EXP z osobnego fragmentu (bez nawiasów)
@@ -729,554 +321,383 @@ function parseExpSmart(txt, ctx={}){
   return { exp:best.exp, pct:best.pct };
 }
 
-async function readRegions(frame, showPreview=true){
-  const out={};
-  if(state.regions.exp){
-    const {canvas:src,img}=getCrop(frame,state.regions.exp);
-    const segs=splitByBrackets(findBrackets(img), img.width);
-    if(segs){
-      const ce=binarize(src,segs.exp[0],segs.exp[1]+1), cp=binarize(src,segs.pct[0],segs.pct[1]+1);
-      const te=await ocr(ce,'0123456789.,'), tp=await ocr(cp,'0123456789.,%');
-      out.rawExp=`${te} [${tp}]`; out.expMode='nawiasy wykryte';
-      const exp=parseExpNumber(te);
-      out.expParsed = exp!=null ? { exp, pct:parsePct(tp) } : null;
-      if(showPreview) showProcessed($('procExp'),[ce,cp]);
-    } else {
-      const c=binarize(src,0,img.width);
-      out.rawExp=await ocr(c,'0123456789.,[]%'); out.expMode='tryb tekstowy';
-      out.expParsed=parseExpSmart(out.rawExp,{ req:knownReq(), prev:lastGood('exp') });
-      if(showPreview) showProcessed($('procExp'),[c]);
-    }
-  }
-  if(state.regions.meso){
-    const {canvas:src,img}=getCrop(frame,state.regions.meso);
-    const c=binarize(src,0,img.width);
-    out.rawMeso=await ocr(c,'0123456789,.');
-    out.meso=parseMeso(out.rawMeso);
-    if(showPreview) showProcessed($('procMeso'),[c]);
-  }
-  if(showPreview){
-    const p=out.expParsed;
-    $('ocrExpTxt').textContent = state.regions.exp
-      ? `„${out.rawExp}” (${out.expMode}) → ${p&&!p.ambiguous ? fmt(p.exp)+' EXP, '+(p.pct??'?')+'%' : (p&&p.ambiguous?'niejednoznaczne':'nie rozpoznano')}`
-      : 'region nie zaznaczony';
-    $('ocrMesoTxt').textContent = state.regions.meso ? `„${out.rawMeso}” → ${out.meso!=null? fmt(out.meso)+' mezo':'nie rozpoznano'}` : 'nie liczone';
-  }
-  return out;
+
+// ============================================================
+//  Maple EXP Tracker — liczy EXP/h z pola EXP (np. 383.963[63.53%])
+// ============================================================
+const INTERVAL = 60_000;          // pomiar co minutę
+const RATE_WINDOW = 10 * 60_000;  // „aktualny” EXP/h = ostatnie 10 minut
+const OCR_TIMEOUT = 30_000;
+const SCALE = 4;
+const REGION_KEY = 'mapleExpTracker.region';
+
+const el = id => document.getElementById(id);
+// referencje do elementów paska (działają także po przeniesieniu paska do pływającego okna)
+const B = {}; for (const id of ['bar','bRate','bRatePct','bEta','bMissing','bPct','bFill','bNew','bNewPct','bNewT','bNewGain','bPrev','bPrevPct','bPrevT','bNext','bNextFill','bState','bPip','bBack']) B[id] = el(id);
+
+let stream = null, track = null, latestFrame = null, frameReader = null;
+let region = null;
+try { region = JSON.parse(localStorage.getItem(REGION_KEY)); } catch (e) {}
+let readings = [];     // przyjęte pomiary: {t, exp, pct, req, gain, ev}
+let rejects = [];      // ostatnie odrzucone (do samonaprawy punktu odniesienia)
+let lastAttempt = null; // {t, ok, why, raw}
+let running = false, busy = false, nextAt = 0;
+let worker = null, pipWin = null;
+
+// ---------------- formatowanie ----------------
+const nf = new Intl.NumberFormat('pl-PL');
+const fmt = n => n == null || !isFinite(n) ? '—' : nf.format(Math.round(n));
+function fmtK(n){
+  if (n == null || !isFinite(n)) return '—';
+  const v = Math.abs(n);
+  if (v >= 1e9) return (n/1e9).toFixed(2) + 'B';
+  if (v >= 1e6) return (n/1e6).toFixed(v >= 1e7 ? 1 : 2) + 'M';
+  if (v >= 1e4) return Math.round(n/1e3) + 'k';
+  if (v >= 1e3) return (n/1e3).toFixed(1) + 'k';
+  return String(Math.round(n));
+}
+function fmtDur(ms){
+  if (ms == null || !isFinite(ms) || ms < 0) return '—';
+  const s = Math.round(ms/1000), h = Math.floor(s/3600), m = Math.floor(s%3600/60);
+  if (h >= 100) return '>99h';
+  return h ? `${h}h ${String(m).padStart(2,'0')}m` : `${m}m ${String(s%60).padStart(2,'0')}s`;
+}
+const hhmm = t => new Date(t).toLocaleTimeString('pl-PL', {hour:'2-digit', minute:'2-digit'});
+function withTimeout(p, ms, msg){ return Promise.race([p, new Promise((_, rej) => setTimeout(() => rej(new Error(msg)), ms))]); }
+
+// ============================================================
+//  Przechwytywanie ekranu
+// ============================================================
+el('btnShare').onclick = async () => {
+  try {
+    stream = await navigator.mediaDevices.getDisplayMedia({ video: { frameRate: 2 }, audio: false });
+  } catch (e) { el('shareInfo').textContent = 'Nie udostępniono ekranu.'; return; }
+  track = stream.getVideoTracks()[0];
+  try { track.contentHint = 'text'; } catch (e) {}
+  el('video').srcObject = stream;
+  track.addEventListener('ended', onShareEnded);
+  startFrameReader();
+  el('n1').classList.add('done');
+  el('shareInfo').textContent = 'Udostępnianie aktywne.';
+  el('btnShare').textContent = 'Zmień okno';
+  el('previewHint').textContent = 'Przeciągnij prostokąt wokół pola EXP.';
+  setTimeout(() => { drawPreview(); if (region) testRead(); updateStep1(); }, 700);
+};
+
+// Klatki czytamy w tle (działa też, gdy karta jest w tle); zapasowo — element <video>
+function startFrameReader(){
+  latestFrame?.close?.(); latestFrame = null;
+  if (!('MediaStreamTrackProcessor' in window)) return;
+  try {
+    const proc = new MediaStreamTrackProcessor({ track });
+    frameReader = proc.readable.getReader();
+    (async () => {
+      while (true) {
+        const { value, done } = await frameReader.read();
+        if (done) break;
+        latestFrame?.close(); latestFrame = value;
+      }
+    })().catch(() => {});
+  } catch (e) { frameReader = null; }
 }
 
-function parseMeso(txt){
-  const digits=txt.replace(/[^\d]/g,'');
-  if(!digits) return null;
-  const v=parseInt(digits,10);
-  return isFinite(v)?v:null;
+function grab(){
+  const c = document.createElement('canvas');
+  if (latestFrame) {
+    try {
+      c.width = latestFrame.displayWidth; c.height = latestFrame.displayHeight;
+      c.getContext('2d').drawImage(latestFrame, 0, 0); return c;
+    } catch (e) {}
+  }
+  const v = el('video');
+  if (!v.videoWidth) return null;
+  c.width = v.videoWidth; c.height = v.videoHeight;
+  c.getContext('2d').drawImage(v, 0, 0); return c;
 }
+
+function onShareEnded(){
+  track = null; stream = null;
+  latestFrame?.close?.(); latestFrame = null;
+  el('n1').classList.remove('done');
+  el('shareInfo').textContent = 'Udostępnianie zakończone.';
+  el('btnShare').textContent = 'Udostępnij ekran';
+  updateStep1();
+  if (running) { B.bState.textContent = 'Udostępnianie zatrzymane — kliknij ⚙'; B.bState.className = 'bad'; }
+}
+
+// ============================================================
+//  Krok 1: podgląd i zaznaczanie pola EXP
+// ============================================================
+const pv = el('preview'), pctx = pv.getContext('2d');
+let previewFrame = null, drag = null, dragRect = null;
+
+function drawPreview(){
+  if (!track) return;
+  const f = grab(); if (!f) return;
+  previewFrame = f;
+  if (pv.width !== f.width || pv.height !== f.height) { pv.width = f.width; pv.height = f.height; }
+  pctx.drawImage(f, 0, 0);
+  el('previewHint').style.display = 'none';
+  const lw = Math.max(2, f.width/600);
+  const box = (r, col) => { if (!r) return; pctx.strokeStyle = col; pctx.lineWidth = lw; pctx.strokeRect(r.x*f.width, r.y*f.height, r.w*f.width, r.h*f.height); };
+  box(region, '#30d158');
+  box(dragRect, '#0a84ff');
+}
+setInterval(() => { if (!el('step1').classList.contains('hidden') && !document.hidden && !drag) drawPreview(); }, 1000);
+
+function pos(e){ const r = pv.getBoundingClientRect(); return { x: Math.min(1, Math.max(0, (e.clientX-r.left)/r.width)), y: Math.min(1, Math.max(0, (e.clientY-r.top)/r.height)) }; }
+pv.addEventListener('pointerdown', e => { if (!track) return; pv.setPointerCapture(e.pointerId); drag = pos(e); dragRect = null; });
+pv.addEventListener('pointermove', e => {
+  if (!drag) return; const p = pos(e);
+  dragRect = { x: Math.min(p.x, drag.x), y: Math.min(p.y, drag.y), w: Math.abs(p.x-drag.x), h: Math.abs(p.y-drag.y) };
+  drawPreview();
+});
+pv.addEventListener('pointerup', () => {
+  if (!drag) return; drag = null;
+  if (dragRect && dragRect.w > 0.004 && dragRect.h > 0.004) {
+    region = dragRect;
+    try { localStorage.setItem(REGION_KEY, JSON.stringify(region)); } catch (e) {}
+    readings = []; rejects = []; lastAttempt = null; // nowe pole = nowa sesja
+    testRead();
+  }
+  dragRect = null; drawPreview(); updateStep1();
+});
 
 async function testRead(){
-  return withLock(async()=>{
-    try{
-      await grab(); drawPreview(); if(!lastFrame) return;
-      await readRegions(lastFrame);
-      for(const k of ['hp','mp']) if(state.regions[k]){ const r=await readVitalRegion(lastFrame,k,true); showVitalText(k,r); }
-    }catch(e){ toast(e.message); }
-  });
-}
-$('btnTest').onclick=testRead;
-
-// ====================== Logika próbek ======================
-function lastGood(key){ for(let i=state.samples.length-1;i>=0;i--){ const s=state.samples[i]; if(key==='exp'&&s.okExp) return s; if(key==='meso'&&s.okMeso) return s; } return null; }
-
-function knownReq(){ // ostatnie zaufane wymaganie EXP na poziom
-  for(let i=state.samples.length-1;i>=0;i--){ const s=state.samples[i]; if(s.okExp&&s.req) return s.req; }
-  return null;
-}
-
-function evaluateExp(sample, parsed){
-  sample.okExp=false; sample.expGain=0;
-  if(!parsed || parsed.ambiguous) { sample.note= parsed? 'EXP: odczyt niejednoznaczny (nawias jako 1?)' : 'EXP: brak odczytu'; return; }
-  const {exp,pct}=parsed;
-  sample.exp=exp; sample.pct=pct;
-  const reqEst = (pct!=null && pct>=0.5) ? exp/(pct/100) : null;
-  const prev=lastGood('exp');
-  const prevReq=knownReq();
-  sample.req = reqEst ?? prevReq;
-
-  if(!prev){ // pierwszy odczyt – tylko punkt odniesienia
-    if(pct==null && exp===0){ sample.note='EXP: podejrzany odczyt'; return; }
-    sample.okExp=true; sample.event='start'; return;
+  if (!track || !region) return;
+  const f = grab(); if (!f) return;
+  el('testRes').textContent = 'Odczytuję…'; el('testRes').className = '';
+  try {
+    const r = await withTimeout(readExp(f, true), OCR_TIMEOUT, 'OCR nie odpowiada');
+    el('testRaw').textContent = `OCR: „${r.raw}” · ${r.mode}`;
+    if (r.exp != null && r.pct != null) {
+      el('testRes').textContent = `✓ ${fmt(r.exp)} EXP · ${r.pct.toFixed(2)}%`; el('testRes').className = 'ok';
+      el('n3').classList.add('done');
+    } else {
+      el('testRes').textContent = '✗ Nie udało się odczytać EXP i % — zaznacz pole ciaśniej'; el('testRes').className = 'bad';
+      el('n3').classList.remove('done');
+    }
+  } catch (e) {
+    if (/OCR nie odpowiada/.test(e.message)) resetWorker();
+    el('testRes').textContent = '✗ ' + e.message; el('testRes').className = 'bad';
   }
-  const prevPct=prev.pct;
-  // kontrola spójności: na tym samym poziomie wymagany EXP się nie zmienia
-  const sameLevelConsistent = !(reqEst && prevReq && pct>=2) || Math.abs(reqEst-prevReq)/prevReq < 0.03;
+}
+el('btnTest').onclick = testRead;
 
-  if(exp>=prev.exp && (pct==null || prevPct==null || pct>=prevPct-0.01)){
-    if(!sameLevelConsistent){ sample.note='EXP: niespójny z % (błąd OCR?)'; return; }
-    // odrzuć absurdalne skoki (> 60% poziomu na jeden odczyt)
-    if(prevReq && exp-prev.exp > prevReq*0.6){ sample.note='EXP: zbyt duży skok'; return; }
-    sample.expGain=exp-prev.exp; sample.okExp=true; return;
+function updateStep1(){
+  el('n2').classList.toggle('done', !!region);
+  el('btnTest').disabled = !(track && region);
+  el('btnNext').disabled = !(track && region);
+}
+
+// ============================================================
+//  OCR
+// ============================================================
+async function getWorker(){
+  if (worker) return worker;
+  if (!window.Tesseract) throw new Error('Brak Tesseract.js — sprawdź połączenie z internetem');
+  worker = await Tesseract.createWorker('eng', 1);
+  return worker;
+}
+function resetWorker(){ try { worker?.terminate(); } catch (e) {} worker = null; }
+async function ocr(canvas, whitelist){
+  const w = await getWorker();
+  await w.setParameters({ tessedit_char_whitelist: whitelist, tessedit_pageseg_mode: '7' });
+  const { data } = await w.recognize(canvas);
+  return data.text.trim();
+}
+
+// Odczyt pola EXP → {exp, pct, raw, mode}
+async function readExp(frame, showPreview){
+  const { canvas: src, img } = getCrop(frame, region);
+  const segs = splitByBrackets(findBrackets(img), img.width);
+  if (segs) {
+    // nawiasy wykryte po kolorze → liczba i procent czytane osobno
+    const ce = binarize(src, segs.exp[0], segs.exp[1]+1), cp = binarize(src, segs.pct[0], segs.pct[1]+1);
+    if (showPreview) showProcessed(el('testImg'), [ce, cp]);
+    const te = await ocr(ce, '0123456789.,'), tp = await ocr(cp, '0123456789.,%');
+    return { exp: parseExpNumber(te), pct: parsePct(tp), raw: `${te} [${tp}]`, mode: 'nawiasy wykryte' };
   }
-  // spadek: awans albo śmierć
-  const pctDrop = (prevPct!=null && pct!=null) ? prevPct-pct : null;
-  const looksLevelUp = (reqEst && prevReq && reqEst > prevReq*1.01) || (pct!=null && pct<5 && prevPct!=null && prevPct>50) || (pctDrop!=null && pctDrop>20);
-  if(looksLevelUp){
-    const toLevel = (prevReq? prevReq - prev.exp : 0);
-    sample.expGain = Math.max(0,toLevel) + exp;
-    sample.event='levelup'; sample.okExp=true; state.levelUps++; return;
+  // tryb awaryjny: całość jedną linią, nawias mógł zostać odczytany jako „1”
+  const c = binarize(src, 0, img.width);
+  if (showPreview) showProcessed(el('testImg'), [c]);
+  const raw = await ocr(c, '0123456789.,[]%');
+  const prev = readings[readings.length-1];
+  const p = parseExpSmart(raw, { req: prev?.req, prev });
+  return { exp: p && !p.ambiguous ? p.exp : null, pct: p && !p.ambiguous ? p.pct : null, raw, mode: 'tryb tekstowy' };
+}
+
+// ============================================================
+//  Pomiary i obliczenia
+// ============================================================
+const reqOf = (exp, pct) => pct >= 0.5 ? exp / (pct/100) : null;  // EXP wymagany na poziom
+
+function accept(t, r){
+  if (r.exp == null || r.pct == null) return reject(t, r, 'nie odczytano EXP lub %');
+  const prev = readings[readings.length-1];
+  const req = reqOf(r.exp, r.pct) ?? prev?.req ?? null;
+  if (!prev) { readings.push({ t, exp: r.exp, pct: r.pct, req, gain: 0, ev: 'start' }); return ok(t, r); }
+
+  // awans: procent spadł mocno albo wymagany EXP wyraźnie wzrósł
+  const levelUp = r.pct < prev.pct - 10 || (req && prev.req && r.pct >= 0.5 && req > prev.req*1.03 && r.exp < prev.exp);
+  let gain, ev = '';
+  if (levelUp) {
+    // po awansie wymagany EXP rośnie (ale nie skokowo) — inaczej to błąd OCR
+    if (req && prev.req && r.pct >= 0.5 && (req < prev.req*0.98 || req > prev.req*2)) return reject(t, r, 'podejrzany awans');
+    gain = (prev.req ? Math.max(0, prev.req - prev.exp) : 0) + r.exp; ev = 'lvl';
+    if (prev.req && gain > prev.req*0.5) return reject(t, r, 'zbyt duża zmiana');
   }
-  if(sameLevelConsistent && pctDrop!=null && pctDrop>0 && pctDrop<=20){
-    sample.expGain = exp-prev.exp; // ujemny
-    sample.event='death'; sample.okExp=true; state.deaths++; return;
+  else {
+    if (prev.req && req && r.pct >= 1 && Math.abs(req - prev.req)/prev.req > 0.03) return reject(t, r, 'EXP nie zgadza się z %');
+    gain = r.exp - prev.exp;
+    if (prev.req && Math.abs(gain) > prev.req*0.5) return reject(t, r, 'zbyt duża zmiana');
+    if (gain < 0) ev = 'death';
   }
-  sample.note='EXP: spadek bez wyjaśnienia (błąd OCR?)';
+  readings.push({ t, exp: r.exp, pct: r.pct, req, gain, ev });
+  return ok(t, r);
 }
-
-function evaluateMeso(sample, meso){
-  sample.okMeso=false; sample.mesoGain=0;
-  if(meso==null){ if(state.regions.meso) sample.noteM='Mezo: brak odczytu'; return; }
-  sample.meso=meso;
-  const prev=lastGood('meso');
-  if(!prev){ sample.okMeso=true; return; }
-  const dl=String(meso).length - String(prev.meso).length;
-  if(Math.abs(dl)>1){ sample.noteM='Mezo: zmiana liczby cyfr (błąd OCR?)'; return; }
-  sample.mesoGain=meso-prev.meso; sample.okMeso=true;
-}
-
-async function takeSample(){
-  if(!track) return;
-  return withLock(async()=>{ try{
-    const frame=await grab(); if(!frame) throw new Error('Brak klatki');
-    if(!document.hidden) drawPreview();
-    const r=await readRegions(frame, uiVisible());
-    const s={ t:Date.now(), rawExp:r.rawExp??'', rawMeso:r.rawMeso??'' };
-    if(state.regions.exp) evaluateExp(s, r.expParsed);
-    if(state.regions.meso) evaluateMeso(s, r.meso);
-    state.samples.push(s); save(); render();
-  }catch(e){ toast('Błąd odczytu: '+e.message); }
-  });
-}
-
-// ====================== HP / MP ======================
-// "307/609" → {cur:307, max:609}. Ukośnik bywa czytany jako "1" lub "7" — wtedy szukamy podziału,
-// który pasuje do znanego maksimum.
-function parseCurMax(t, knownMax){
-  const s=t.replace(/\s+/g,'').replace(/[^\d\/]/g,'');
-  const parts=s.split('/').filter(Boolean);
-  if(parts.length===2){
-    const cur=+parts[0], max=+parts[1];
-    if(max>0 && cur<=max) return {cur,max};
-  }
-  const d=s.replace(/\//g,'');
-  const cands=[];
-  for(let i=1;i<d.length-1;i++){
-    if(d[i]!=='1' && d[i]!=='7') continue;
-    const a=d.slice(0,i), b=d.slice(i+1);
-    if((a.length>1&&a[0]==='0') || b[0]==='0') continue;
-    const cur=+a, max=+b;
-    if(!max || cur>max) continue;
-    let sc=0;
-    if(knownMax){ if(max===knownMax) sc+=10; else sc-=5; }
-    sc-=Math.abs(a.length-b.length)*0.5;
-    cands.push({cur,max,sc});
-  }
-  if(!cands.length) return null;
-  cands.sort((x,y)=>y.sc-x.sc);
-  if(cands[1] && cands[1].sc===cands[0].sc) return null; // niejednoznaczne
-  return {cur:cands[0].cur, max:cands[0].max};
-}
-
-async function readVitalRegion(frame, key, showPreview){
-  const {canvas:src,img}=getCrop(frame,state.regions[key]);
-  const runs=findBrackets(img);
-  let x0=0, x1=img.width;
-  if(runs.length>=2){ x0=runs[0].e+3; x1=runs[runs.length-1].s-1; }
-  else if(runs.length===1){ const r=runs[0]; if(r.s<img.width/2) x0=r.e+3; else x1=r.s-1; }
-  if(x1-x0<3){ x0=0; x1=img.width; }
-  const c=binarize(src,x0,x1);
-  const raw=await ocr(c,'0123456789/');
-  if(showPreview) showProcessed($(key==='hp'?'procHp':'procMp'),[c]);
-  return { raw, parsed:parseCurMax(raw, state.vitals[key].knownMax) };
-}
-
-function showVitalText(key, r, note){
-  const el=$(key==='hp'?'ocrHpTxt':'ocrMpTxt');
-  if(!state.regions[key]){ el.textContent='nie liczone'; return; }
-  el.textContent=`„${r.raw}” → ${r.parsed? r.parsed.cur+' / '+r.parsed.max : 'nie rozpoznano'}${note? ' ('+note+')':''}`;
-}
-
-// Zwraca null, gdy odczyt przyjęty, albo powód odrzucenia
-function updateVital(v, parsed, t){
-  v.reads++;
-  if(!parsed){ v.rejected++; return 'brak odczytu'; }
-  const {cur,max}=parsed;
-  // Maksimum zmienia się rzadko (awans, buff) — nowe max musi się powtórzyć dwa razy z rzędu
-  if(v.knownMax==null) v.knownMax=max;
-  else if(max!==v.knownMax){
-    if(v.pendingMax===max){ v.knownMax=max; v.pendingMax=null; }
-    else { v.pendingMax=max; v.rejected++; return 'nowe max — czekam na potwierdzenie'; }
-  } else v.pendingMax=null;
-  v.cur=cur; v.max=max;
-  const gapMax=Math.max(30000, state.hpmpInterval*5000);
-  if(v.last && t-v.last.t<=gapMax){
-    const d=cur-v.last.cur, dt=t-v.last.t;
-    const lost=Math.max(0,-d), gained=Math.max(0,d);
-    v.lost+=lost; v.gained+=gained; v.ms+=dt;
-    const m=Math.floor(t/60000)*60000;
-    let b=v.buckets[v.buckets.length-1];
-    if(!b||b.t!==m){ b={t:m,lost:0,gained:0,ms:0}; v.buckets.push(b); if(v.buckets.length>1440) v.buckets.shift(); }
-    b.lost+=lost; b.gained+=gained; b.ms+=dt;
-  }
-  v.last={t,cur};
-  return null;
-}
-
-let hpmpPending=false;
-function hpmpTick(){
-  if(hpmpPending || !track) return;      // poprzedni odczyt jeszcze trwa — pomiń
-  hpmpPending=true;
-  withLock(async()=>{
-    try{
-      const frame=await grab(); if(!frame) return;
-      const t=Date.now(), vis=uiVisible();
-      for(const k of ['hp','mp']){
-        if(!state.regions[k]) continue;
-        const r=await readVitalRegion(frame,k,vis);
-        const why=updateVital(state.vitals[k], r.parsed, t);
-        if(vis) showVitalText(k,r,why);
-      }
-      save(); renderVitals();
-    }catch(e){ /* pojedynczy błąd pomijamy */ }
-  }).finally(()=>{ hpmpPending=false; });
-}
-
-function vitalRates(v){
-  const all = v.ms>0 ? { lost:v.lost/(v.ms/3.6e6), gained:v.gained/(v.ms/3.6e6) } : null;
-  const from=Date.now()-state.windowMin*60000;
-  let l=0,g=0,ms=0; for(const b of v.buckets) if(b.t>=from){ l+=b.lost; g+=b.gained; ms+=b.ms; }
-  const win = ms>60000 ? { lost:l/(ms/3.6e6), gained:g/(ms/3.6e6) } : null;
-  return {all,win};
-}
-function renderVitals(){
-  for(const [k,L] of [['hp','Hp'],['mp','Mp']]){
-    const v=state.vitals[k];
-    if(!state.regions[k]){ $('c'+L+'H').textContent='OFF'; $('s'+L+'Lost').textContent='wyłączone'; $('s'+L+'LostSub').textContent='—'; $('s'+L+'Now').textContent='—'; $('s'+L+'NowSub').textContent='—'; continue; }
-    const {all,win}=vitalRates(v);
-    $('s'+L+'Lost').textContent= all? fmtShort(all.lost) : '—';
-    $('s'+L+'LostSub').textContent= all
-      ? `ost. ${state.windowMin} min: ${win?fmtShort(win.lost):'—'} · odzyskane: ${fmtShort(all.gained)}/h`
-      : 'potrzebne ≥2 odczyty (sesja uruchomiona)';
-    $('s'+L+'Now').textContent= v.cur!=null ? `${fmt(v.cur)} / ${fmt(v.max)}` : '—';
-    const cr=win||all; $('c'+L+'H').textContent= cr? fmtShort(cr.lost) : '—';
-    $('s'+L+'NowSub').textContent= `zużyte łącznie: ${fmt(v.lost)} · odczyty: ${v.reads}, odrzucone: ${v.rejected}`;
+function ok(t, r){ rejects = []; lastAttempt = { t, ok: true, raw: r.raw }; }
+function reject(t, r, why){
+  lastAttempt = { t, ok: false, why, raw: r.raw, exp: r.exp, pct: r.pct };
+  // samonaprawa: dwa kolejne odrzucone odczyty zgodne ze sobą → to poprzedni punkt odniesienia był zły
+  if (r.exp != null && r.pct != null) {
+    rejects.push({ t, exp: r.exp, pct: r.pct, req: reqOf(r.exp, r.pct) });
+    const [a, b] = rejects.slice(-2);
+    if (a && b && b.exp >= a.exp && (!a.req || !b.req || Math.abs(a.req-b.req)/a.req < 0.03)) {
+      readings.push({ t, exp: b.exp, pct: b.pct, req: b.req ?? a.req, gain: 0, ev: 'reset' });
+      rejects = []; lastAttempt = { t, ok: true, raw: r.raw, note: 'nowy punkt odniesienia' };
+    }
   }
 }
 
-// ====================== Sesja ======================
-function startSession(){
-  if(!state.regions.exp && !state.regions.meso){ toast('Najpierw zaznacz region EXP'); return; }
-  running=true; $('btnStart').textContent='⏸ Pauza';
-  takeSample();
-  scheduleNext();
-  restartHpmp();
-}
-function scheduleNext(){
-  timer?.stop(); timer=null;
-  if(!running) return;
-  nextAt=Date.now()+state.interval*1000;
-  timer=makeTicker(state.interval*1000, ()=>{ nextAt=Date.now()+state.interval*1000; takeSample(); });
-}
-function restartHpmp(){
-  hpmpTimer?.stop(); hpmpTimer=null;
-  for(const k of ['hp','mp']) state.vitals[k].last=null; // przerwa nie liczy się jako zużycie
-  if(!running || !(state.regions.hp||state.regions.mp)){ $('hpmpInfo').textContent=''; return; }
-  hpmpTimer=makeTicker(state.hpmpInterval*1000, hpmpTick);
-  $('hpmpInfo').textContent='odczyt HP/MP aktywny';
-}
-function stopSession(){ running=false; timer?.stop(); timer=null; restartHpmp(); $('btnStart').textContent='▶ Start'; $('nextIn').textContent='—'; }
-$('btnStart').onclick=()=> running? stopSession(): startSession();
-$('btnNow').onclick=()=>takeSample();
-$('interval').onchange=e=>{ state.interval=+e.target.value; save(); if(running) scheduleNext(); };
-$('hpmpInterval').onchange=e=>{ state.hpmpInterval=+e.target.value; save(); restartHpmp(); };
-$('window').onchange=e=>{ state.windowMin=+e.target.value; save(); render(); };
-$('btnReset').onclick=()=>{
-  if($('btnReset').dataset.confirm!=='1'){ $('btnReset').dataset.confirm='1'; $('btnReset').textContent='Na pewno?'; setTimeout(()=>{ $('btnReset').dataset.confirm=''; $('btnReset').textContent='Reset'; },3000); return; }
-  $('btnReset').dataset.confirm=''; $('btnReset').textContent='Reset';
-  state.samples=[]; state.levelUps=0; state.deaths=0; state.vitals={hp:newVital(),mp:newVital()}; save(); render(); toast('Sesja wyzerowana');
-};
-setInterval(()=>{
-  if(running){ const s=Math.max(0,Math.ceil((nextAt-Date.now())/1000)); $('nextIn').textContent= s>=60? Math.floor(s/60)+'m '+String(s%60).padStart(2,'0')+'s' : s+' s'; }
-  if(state.samples.length) renderTime();
-  renderLast();
-},1000);
-
-// ====================== Okna (main / detail / setup) ======================
-function showWin(which, on){
-  if(which!=='setup') return;
-  state.ui.setup=on; save();
-  $('setupWin').classList.toggle('hidden',!on);
-  $('btnSetupToggle').classList.toggle('active',on);
-  if(on){ grab().then(drawPreview); if(pipWin) window.focus(); }
-  render();
-}
-$('btnSetupToggle').onclick=()=>showWin('setup',!state.ui.setup);
-$('btnSetupClose').onclick=()=>showWin('setup',false);
-
-// Pływające okno nad grą: przenosimy kolumnę statystyk do okna Picture-in-Picture
-async function togglePip(){
-  if(pipWin){ pipWin.close(); return; }
-  if(!('documentPictureInPicture' in window)){ toast('Pływające okno wymaga Chrome/Edge 116+'); return; }
-  try{
-    pipWin = await documentPictureInPicture.requestWindow({ width:200, height:800 });
-  }catch(e){ pipWin=null; toast('Nie udało się otworzyć okna: '+e.message); return; }
-  for(const el of document.head.querySelectorAll('style,link[rel=stylesheet]')) pipWin.document.head.appendChild(el.cloneNode(true));
-  pipWin.document.title='Maple Tracker';
-  pipWin.document.body.className='pip';
-  const col=document.getElementById('col');
-  pipWin.document.body.appendChild(col);
-  $('btnPip').classList.add('active');
-  pipWin.addEventListener('pagehide',()=>{
-    $('btnPip').classList.remove('active');
-    document.getElementById('desk').prepend(col);
-    pipWin=null; render();
-  });
-  render();
-}
-$('btnPip').onclick=togglePip;
-if(!('documentPictureInPicture' in window)) $('btnPip').title='Pływające okno: wymaga Chrome/Edge 116+';
-
-// Ostatni pomiar: godzina + ile temu; na czerwono, gdy ostatni odczyt był błędny
-function agoTxt(ms){ const s=Math.round(ms/1000); return s<60? s+'s' : s<3600? Math.floor(s/60)+'m' : Math.floor(s/3600)+'h'; }
-function renderLast(){
-  const S=state.samples, el=$('cLast');
-  if(!S.length){ el.textContent='—'; el.classList.remove('bad'); el.title=''; return; }
-  const s=S[S.length-1];
-  const bad=(state.regions.exp&&!s.okExp)||(state.regions.meso&&!s.okMeso);
-  const t=new Date(s.t).toLocaleTimeString('pl-PL',{hour:'2-digit',minute:'2-digit'});
-  el.innerHTML=`${t}<small>${agoTxt(Date.now()-s.t)}${bad?' ⚠':''}</small>`;
-  el.classList.toggle('bad',!!bad);
-  el.title= bad? [s.note,s.noteM].filter(Boolean).join('; ') : 'Odczyt poprawny';
+// EXP/h z ostatnich 10 minut (min. 2 pomiary)
+function currentRate(){
+  if (readings.length < 2) return null;
+  const now = readings[readings.length-1].t;
+  let i = readings.length - 1;
+  if (readings[i].ev === 'reset') return null; // nowy punkt odniesienia — czekamy na kolejny pomiar
+  // cofamy się w oknie 10 min, ale nie przed reset (wcześniejsze dane były błędne)
+  while (i > 0 && readings[i].ev !== 'reset' && now - readings[i-1].t <= RATE_WINDOW + 5000) i--;
+  if (i === readings.length - 1) i = readings.length - 2; // zawsze co najmniej ostatnia para
+  const seg = readings.slice(i);
+  const gain = seg.slice(1).reduce((a, r) => a + r.gain, 0);
+  const dt = seg[seg.length-1].t - seg[0].t;
+  return dt > 0 ? gain / dt * 3.6e6 : null;
 }
 
-// ====================== Statystyki ======================
-function rate(samples, key, fromT){
-  const okKey = key==='exp'?'okExp':'okMeso', gKey = key==='exp'?'expGain':'mesoGain';
-  const good = samples.filter(s=>s[okKey]);
-  if(good.length<2) return null;
-  // punkt startowy: ostatni dobry odczyt przed/na fromT, albo pierwszy
-  let startIdx=0;
-  if(fromT){ for(let i=0;i<good.length;i++){ if(good[i].t<=fromT) startIdx=i; } }
-  const seg=good.slice(startIdx);
-  if(seg.length<2) return null;
-  const gain=seg.slice(1).reduce((a,s)=>a+s[gKey],0);
-  const hours=(seg[seg.length-1].t-seg[0].t)/3.6e6;
-  if(hours<=0) return null;
-  return { gain, hours, perH: gain/hours, gross: seg.slice(1).reduce((a,s)=>a+Math.max(0,s[gKey]),0)/hours };
+async function sample(){
+  if (busy || !track) return;
+  busy = true;
+  const t = Date.now();
+  nextAt = t + INTERVAL;
+  try {
+    const f = grab(); if (!f) throw new Error('brak obrazu z ekranu');
+    const r = await withTimeout(readExp(f, false), OCR_TIMEOUT, 'OCR nie odpowiada');
+    accept(t, r);
+  } catch (e) {
+    if (/OCR nie odpowiada/.test(e.message)) resetWorker();
+    lastAttempt = { t, ok: false, why: e.message };
+  } finally { busy = false; renderBar(); }
 }
 
-function renderTime(){
-  const S=state.samples; if(!S.length) return;
-  const end = running? Date.now() : S[S.length-1].t;
-  $('sTime').textContent=fmtDur(end-S[0].t);
+// Zegar w Web Workerze — Chrome nie spowalnia go w tle tak jak zwykłych timerów
+function startClock(fn){
+  try {
+    const url = URL.createObjectURL(new Blob(['setInterval(()=>postMessage(0),1000)'], { type: 'text/javascript' }));
+    const w = new Worker(url); w.onmessage = fn; return;
+  } catch (e) {}
+  setInterval(fn, 1000);
+}
+startClock(() => {
+  if (!running) return;
+  if (track && !busy && Date.now() >= nextAt) sample();
+  renderCountdown();
+});
+
+// ============================================================
+//  Krok 2: pasek
+// ============================================================
+function renderCountdown(){
+  if (busy) { B.bNext.textContent = '…'; return; }
+  const ms = Math.max(0, nextAt - Date.now()), s = Math.ceil(ms/1000);
+  B.bNext.textContent = `${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`;
+  B.bNextFill.style.width = (100 - ms/INTERVAL*100) + '%';
 }
 
-function render(){
-  const S=state.samples;
-  document.querySelectorAll('.wlbl').forEach(e=>e.textContent=state.windowMin);
-  const fromT=Date.now()-state.windowMin*60000;
-  const eAll=rate(S,'exp'), eWin=rate(S,'exp',fromT), mAll=rate(S,'meso'), mWin=rate(S,'meso',fromT);
-  const req=knownReq(); const lg=lastGood('exp');
+function renderBar(){
+  const cur = readings[readings.length-1], prev = readings[readings.length-2];
+  const rate = currentRate();
 
-  $('sExpH').textContent=eAll?fmtShort(eAll.perH):'—';
-  $('sExpPctH').textContent=(eAll&&req)? (eAll.perH/req*100).toFixed(2)+' % poziomu / h':'potrzebne ≥2 odczyty';
-  $('sExpHw').textContent=eWin?fmtShort(eWin.perH):'—';
-  $('sExpPctHw').textContent=(eWin&&req)? (eWin.perH/req*100).toFixed(2)+' % poziomu / h':'—';
-  $('sMesoH').textContent=mAll?fmtShort(mAll.perH):(state.regions.meso?'—':'wyłączone');
-  $('sMesoGross').textContent=mAll? 'brutto (bez wydatków): '+fmtShort(mAll.gross)+' / h':'—';
-  $('sMesoHw').textContent=mWin?fmtShort(mWin.perH):'—';
-  $('sExpTot').textContent=eAll?fmt(eAll.gain):'—';
-  $('sLvl').textContent=`awanse: ${state.levelUps} · śmierci: ${state.deaths}`;
-  if(lg && req){
-    const left=req-lg.exp; const r=(eWin||eAll);
-    $('sEta').textContent = r&&r.perH>0 ? fmtDur(left/r.perH*3.6e6) : '—';
-    $('sReq').textContent = `brakuje ${fmt(left)} z ${fmt(req)} EXP`;
-  } else { $('sEta').textContent='—'; $('sReq').textContent='—'; }
-  const er=eWin||eAll, mr=mWin||mAll;
-  $('cExpH').textContent = er? fmtShort(er.perH) : '—';
-  $('cExpWin').textContent = er? (eWin? state.windowMin+' min':'sesja') : '';
-  $('cExpSub').textContent = er&&req ? `${(er.perH/req*100).toFixed(1)}% poziomu / h` : (S.length? 'potrzebne ≥2 odczyty':'brak pomiarów');
-  const pctNow = lg&&lg.pct!=null ? lg.pct : (lg&&req? lg.exp/req*100 : null);
-  $('cLvFill').style.width = pctNow!=null ? Math.min(100,pctNow)+'%' : '0';
-  $('cLvPct').textContent = pctNow!=null ? pctNow.toFixed(2)+'%' : '';
-  let etaMs=null; if(lg&&req){ const r=eWin||eAll; if(r&&r.perH>0) etaMs=(req-lg.exp)/r.perH*3.6e6; }
-  $('cEta').textContent = etaMs!=null ? fmtDurShort(etaMs) : '—';
-  $('cMesoH').textContent = state.regions.meso ? (mr? fmtShort(mr.perH):'—') : 'OFF';
-  renderLast();
-  const lm=lastGood('meso');
-  $('sMesoTot').textContent=mAll?fmt(mAll.gain):'—';
-  $('sMesoNow').textContent=lm? 'teraz: '+fmt(lm.meso):'—';
-  const bad=S.filter(s=>(state.regions.exp&&!s.okExp)||(state.regions.meso&&!s.okMeso)).length;
-  $('sSamples').textContent=`${S.length} odczytów · odrzuconych: ${bad}`;
-  renderVitals();
-  renderTime();
+  B.bRate.textContent = rate != null ? fmtK(rate) : '—';
+  B.bRatePct.textContent = rate != null && cur?.req ? `${(rate/cur.req*100).toFixed(1)}% lvl/h` : (readings.length < 2 ? 'czekam na 2. pomiar' : '—');
 
-  // tabela
-  const tb=$('samples'); tb.innerHTML='';
-  for(let i=S.length-1;i>=0;i--){
-    const s=S[i]; const tr=document.createElement('tr');
-    const ev = s.event==='levelup'?' ⬆':s.event==='death'?' ☠':'';
-    const notes=[s.note,s.noteM].filter(Boolean).join('; ');
-    tr.title=`EXP: ${s.exp!=null?fmt(s.exp):'—'} (${s.pct!=null?s.pct.toFixed(2)+'%':'—'}) · Mezo: ${s.meso!=null?fmt(s.meso):'—'}${notes?' · '+notes:''}`;
-    tr.innerHTML=`<td>${hhmm(s.t).slice(0,5)}${ev}</td>
-      <td class="${!s.okExp&&state.regions.exp?'bad':s.expGain<0?'bad':s.expGain>0?'ok':''}">${s.okExp?fmtShort(s.expGain):'✗'}</td>
-      <td class="${!s.okMeso&&state.regions.meso?'bad':s.mesoGain<0?'bad':s.mesoGain>0?'ok':''}">${s.okMeso?fmtShort(s.mesoGain):(state.regions.meso?'✗':'—')}</td>
-      <td style="color:${notes?'var(--orange)':'var(--t3)'}">${notes?'⚠':'✓'}</td>
-      <td><button class="x" data-i="${i}" title="Usuń odczyt">✕</button></td>`;
-    tb.appendChild(tr);
+  const missing = cur?.req ? Math.max(0, cur.req - cur.exp) : null;
+  B.bMissing.textContent = missing != null ? `brak ${fmtK(missing)}` : '—';
+  B.bEta.textContent = missing != null && rate > 0 ? fmtDur(missing / rate * 3.6e6) : '—';
+
+  B.bPct.textContent = cur ? cur.pct.toFixed(2) + '%' : '—';
+  B.bFill.style.height = cur ? Math.min(100, cur.pct) + '%' : '0';
+
+  // nowy pomiar: jeśli ostatnia próba była błędna, pokazujemy błąd
+  if (lastAttempt && !lastAttempt.ok) {
+    B.bNew.textContent = lastAttempt.exp != null ? fmt(lastAttempt.exp) : 'błąd';
+    B.bNew.className = 'val bad';
+    B.bNewPct.textContent = lastAttempt.pct != null ? lastAttempt.pct.toFixed(2) + '%' : '—';
+    B.bNewT.textContent = hhmm(lastAttempt.t);
+    B.bNewGain.textContent = 'odrzucony'; B.bNewGain.className = 'sm down';
+    B.bState.textContent = lastAttempt.why + (lastAttempt.raw ? ` („${lastAttempt.raw}”)` : ''); B.bState.className = 'bad';
+  } else {
+    B.bNew.className = 'val';
+    B.bNew.textContent = cur ? fmt(cur.exp) : '—';
+    B.bNewPct.textContent = cur ? cur.pct.toFixed(2) + '%' : '—';
+    B.bNewT.textContent = cur ? hhmm(cur.t) : ' ';
+    const g = cur && prev ? cur.gain : null;
+    B.bNewGain.textContent = cur?.ev === 'lvl' ? `⬆ LVL +${fmtK(g)}` : cur?.ev === 'death' ? `☠ ${fmtK(g)}` : g != null ? (g >= 0 ? '+' : '') + fmtK(g) : ' ';
+    B.bNewGain.className = 'sm ' + (g > 0 ? 'up' : g < 0 ? 'down' : '');
+    B.bState.textContent = lastAttempt?.note || ''; B.bState.className = '';
   }
-  tb.querySelectorAll('.x').forEach(b=>b.onclick=()=>removeSample(+b.dataset.i));
-  drawChart($('chartExp'), S, 'exp', '#c6e05a', 'EXP (skumulowany)');
-  drawChart($('chartMeso'), S, 'meso', '#ffcc4d', 'Mezo netto');
+
+  B.bPrev.textContent = prev ? fmt(prev.exp) : '—';
+  B.bPrevPct.textContent = prev ? prev.pct.toFixed(2) + '%' : '—';
+  B.bPrevT.textContent = prev ? hhmm(prev.t) : ' ';
+  renderCountdown();
 }
 
-// Usunięcie odczytu wymaga przeliczenia przyrostów od nowa
-function removeSample(i){
-  const raw=state.samples.filter((_,j)=>j!==i);
-  state.samples=[]; state.levelUps=0; state.deaths=0;
-  for(const s of raw){
-    const n={t:s.t, rawExp:s.rawExp, rawMeso:s.rawMeso};
-    if(state.regions.exp || s.exp!=null) evaluateExp(n, s.exp!=null?{exp:s.exp,pct:s.pct}:null);
-    if(state.regions.meso || s.meso!=null) evaluateMeso(n, s.meso??null);
-    state.samples.push(n);
-  }
-  save(); render();
+function goStep2(){
+  el('step1').classList.add('hidden');
+  B.bar.classList.remove('hidden');
+  if (!running) { running = true; nextAt = 0; } // pierwszy pomiar od razu
+  renderBar();
 }
+function goStep1(){
+  if (pipWin) pipWin.close();
+  running = false;
+  B.bar.classList.add('hidden');
+  el('step1').classList.remove('hidden');
+  drawPreview(); updateStep1();
+}
+el('btnNext').onclick = goStep2;
+B.bBack.onclick = goStep1;
 
-function drawChart(cv, S, key, color, title){
-  const dpr=window.devicePixelRatio||1, W=cv.clientWidth, H=cv.clientHeight;
-  cv.width=W*dpr; cv.height=H*dpr; const c=cv.getContext('2d'); c.scale(dpr,dpr);
-  c.clearRect(0,0,W,H);
-  c.fillStyle='rgba(235,235,245,.6)'; c.font='10px -apple-system, BlinkMacSystemFont, system-ui, sans-serif'; c.fillText(title,4,11);
-  const okKey=key==='exp'?'okExp':'okMeso', gKey=key==='exp'?'expGain':'mesoGain';
-  const pts=[]; let cum=0;
-  for(const s of S){ if(!s[okKey]) continue; cum+=s[gKey]||0; pts.push([s.t,cum]); }
-  if(pts.length<2){ c.fillText('za mało danych',10,40); return; }
-  const t0=pts[0][0], t1=pts[pts.length-1][0];
-  let ymin=Math.min(0,...pts.map(p=>p[1])), ymax=Math.max(...pts.map(p=>p[1])); if(ymax===ymin) ymax=ymin+1;
-  const L=40,R=4,T=18,B=14;
-  const X=t=>L+(t-t0)/(t1-t0||1)*(W-L-R), Y=v=>T+(1-(v-ymin)/(ymax-ymin))*(H-T-B);
-  c.strokeStyle='rgba(255,255,255,.1)'; c.lineWidth=1;
-  for(let k=0;k<=2;k++){ const v=ymin+(ymax-ymin)*k/2, y=Y(v); c.beginPath(); c.moveTo(L,y); c.lineTo(W-R,y); c.stroke(); c.fillStyle='rgba(235,235,245,.5)'; c.fillText(fmtShort(v),2,y+3); }
-  c.fillText(hhmm(t0).slice(0,5),L,H-4); const lbl=hhmm(t1).slice(0,5); c.fillText(lbl,W-R-c.measureText(lbl).width,H-4);
-  c.strokeStyle=color; c.lineWidth=2; c.beginPath();
-  pts.forEach((p,i)=>{ const x=X(p[0]),y=Y(p[1]); i?c.lineTo(x,y):c.moveTo(x,y); }); c.stroke();
-  // znaczniki awansów
-  if(key==='exp'){ let cum2=0; for(const s of S){ if(!s.okExp) continue; cum2+=s.expGain||0; if(s.event==='levelup'){ c.fillStyle='#30d158'; c.beginPath(); c.arc(X(s.t),Y(cum2),4,0,7); c.fill(); } } }
-}
-
-// ====================== Mapa i historia ======================
-$('mapName').value = state.map || '';
-$('mapName').addEventListener('input', e=>{ state.map=e.target.value.trim(); save(); });
-
-const H={ map:0, t0:1, dur:2, exp:3, expH:4, lvl:5, deaths:6, meso:7, mesoH:8, hpH:9, mpH:10, n:11 };
-function sessionSummary(){
-  const S=state.samples, vh=state.vitals.hp, vm=state.vitals.mp;
-  if(!S.length && !vh.ms && !vm.ms) return null;
-  const eAll=rate(S,'exp'), mAll=rate(S,'meso');
-  const hp=vitalRates(vh).all, mp=vitalRates(vm).all;
-  const t1=S.length? S[S.length-1].t : Date.now();
-  const t0=S.length? S[0].t : t1-Math.max(vh.ms,vm.ms);
-  const r=v=>v==null||!isFinite(v)? null : Math.round(v);
-  return [ (state.map||'').slice(0,40), Math.round(t0/1000), Math.round((t1-t0)/1000),
-           r(eAll?.gain), r(eAll?.perH), state.levelUps, state.deaths,
-           state.regions.meso? r(mAll?.gain):null, state.regions.meso? r(mAll?.perH):null,
-           state.regions.hp? r(hp?.lost):null, state.regions.mp? r(mp?.lost):null, S.length ];
-}
-function persistHist(){
-  const ok=store.write('hist',hist);
-  if(!ok) toast('Limit cookies przekroczony — historia zapisana w pamięci przeglądarki');
-  renderHist();
-}
-$('btnSaveHist').onclick=()=>{
-  const e=sessionSummary();
-  if(!e){ toast('Brak danych do zapisania'); return; }
-  if(!e[H.map]){ toast('Wpisz nazwę mapy (pole pod przyciskami)'); $('mapName').focus(); }
-  // ta sama sesja zapisana ponownie → aktualizujemy wpis zamiast dublować
-  const i=hist.findIndex(x=>x[H.t0]===e[H.t0]);
-  if(i>=0) hist[i]=e; else hist.unshift(e);
-  if(hist.length>150) hist.length=150;
-  persistHist();
-  toast(i>=0? 'Zaktualizowano wpis w historii' : 'Zapisano w historii');
+// Pływające okno nad grą (Chrome/Edge 116+): przenosimy pasek do okna Picture-in-Picture
+B.bPip.onclick = async () => {
+  if (pipWin) { pipWin.close(); return; }
+  if (!('documentPictureInPicture' in window)) { B.bState.textContent = 'Pływające okno wymaga Chrome/Edge 116+'; return; }
+  try { pipWin = await documentPictureInPicture.requestWindow({ width: 80, height: screen.availHeight || 800 }); }
+  catch (e) { pipWin = null; B.bState.textContent = 'Nie udało się otworzyć okna'; return; }
+  for (const s of document.head.querySelectorAll('style')) pipWin.document.head.appendChild(s.cloneNode(true));
+  pipWin.document.title = 'EXP/h';
+  pipWin.document.body.className = 'pip';
+  pipWin.document.body.appendChild(B.bar);
+  pipWin.addEventListener('pagehide', () => { document.body.appendChild(B.bar); pipWin = null; });
 };
 
-function delHist(i, btn){
-  if(!btn.classList.contains('confirm')){ btn.classList.add('confirm'); btn.textContent='usuń?'; setTimeout(()=>{ btn.classList.remove('confirm'); btn.textContent='✕'; },3000); return; }
-  hist.splice(i,1); persistHist();
+if (!navigator.mediaDevices?.getDisplayMedia) {
+  el('shareInfo').textContent = 'Ta przeglądarka nie obsługuje udostępniania ekranu — użyj Chrome lub Edge.';
+  el('btnShare').disabled = true;
 }
+updateStep1();
 
-function fmtK(n){ // krótki zapis do wąskich wierszy: 750k, 1.25M
-  if(n==null||!isFinite(n)) return '—'; const v=Math.abs(n);
-  if(v>=1e9) return (n/1e9).toFixed(2)+'B'; if(v>=1e6) return (n/1e6).toFixed(2)+'M'; if(v>=1e4) return Math.round(n/1e3)+'k'; if(v>=1e3) return (n/1e3).toFixed(1)+'k'; return String(Math.round(n));
-}
-function esc(s){ return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
-function renderHist(){
-  // lista historii
-  const hc=$('histCard');
-  if(!hist.length) hc.innerHTML='<div class="row"><span class="lbl" style="color:var(--t3)">Brak zapisanych sesji</span></div>';
-  else hc.innerHTML=hist.map((e,i)=>{
-    const d=new Date(e[H.t0]*1000);
-    const date=d.toLocaleDateString('pl-PL',{day:'2-digit',month:'2-digit'})+' '+d.toLocaleTimeString('pl-PL',{hour:'2-digit',minute:'2-digit'});
-    const extra=[e[H.lvl]?`⬆${e[H.lvl]}`:'', e[H.deaths]?`☠${e[H.deaths]}`:''].filter(Boolean).join(' ');
-    return `<div class="hist" title="EXP: ${fmt(e[H.exp])} · Mezo: ${fmt(e[H.meso])} · pomiary: ${e[H.n]}">
-      <div class="h1"><b>${esc(e[H.map]||'bez nazwy')}</b><button class="x" data-i="${i}">✕</button></div>
-      <div class="h2">${date} · ${fmtDurShort(e[H.dur]*1000)}${extra?' · '+extra:''}</div>
-      <div class="h3"><span style="color:var(--exp)">EXP</span> ${fmtK(e[H.expH])}/h${e[H.mesoH]!=null?` · <span style="color:var(--meso)">Mezo</span> ${fmtK(e[H.mesoH])}/h`:''}</div>
-      ${e[H.hpH]!=null||e[H.mpH]!=null?`<div class="h3"><span style="color:var(--hp)">HP</span> ${fmtK(e[H.hpH])}/h · <span style="color:var(--mp)">MP</span> ${fmtK(e[H.mpH])}/h</div>`:''}
-    </div>`;
-  }).join('');
-  hc.querySelectorAll('.x').forEach(b=>b.onclick=()=>delHist(+b.dataset.i,b));
-
-  // średnie dla map (ważone czasem sesji)
-  const maps=new Map();
-  for(const e of hist){
-    const k=e[H.map]||'bez nazwy'; const m=maps.get(k)||{n:0,dur:0,exp:0,expDur:0,meso:0,mesoDur:0};
-    m.n++; m.dur+=e[H.dur];
-    if(e[H.expH]!=null){ m.exp+=e[H.expH]*e[H.dur]; m.expDur+=e[H.dur]; }
-    if(e[H.mesoH]!=null){ m.meso+=e[H.mesoH]*e[H.dur]; m.mesoDur+=e[H.dur]; }
-    maps.set(k,m);
-  }
-  const mc=$('mapsCard');
-  const rows=[...maps.entries()].map(([k,m])=>({k,m,expH:m.expDur?m.exp/m.expDur:null,mesoH:m.mesoDur?m.meso/m.mesoDur:null}))
-    .sort((a,b)=>(b.expH??-1)-(a.expH??-1));
-  mc.innerHTML = rows.length ? rows.map(r=>`<div class="stack"><div class="lbl">${esc(r.k)}</div>
-      <div class="v">${r.expH!=null?fmtShort(r.expH):'—'} <span style="font-size:11px;font-weight:400;color:var(--t2)">EXP/h</span></div>
-      <small>${r.mesoH!=null?fmtK(r.mesoH)+' mezo/h · ':''}${r.m.n}× · ${fmtDurShort(r.m.dur*1000)}</small></div>`).join('')
-    : '<div class="row"><span class="lbl" style="color:var(--t3)">Brak zapisanych sesji</span></div>';
-
-  // podpowiedzi nazw map
-  $('mapList').innerHTML=[...maps.keys()].filter(k=>k!=='bez nazwy').map(k=>`<option value="${esc(k)}">`).join('');
-  $('storeInfo').textContent = store.kind==='cookies'
-    ? `Zapis: cookies · ${hist.length} ${hist.length===1?'wpis':'wpisów'}`
-    : `Zapis: pamięć przeglądarki — cookies nie działają dla plików otwartych z dysku (file://). Uruchom przez http://localhost, aby używać cookies.`;
-}
-
-// ====================== Eksport ======================
-function toCSV(){
-  const head='czas;exp;procent;przyrost_exp;zdarzenie;mezo;przyrost_mezo;ocr_exp;ocr_mezo;uwagi';
-  const rows=state.samples.map(s=>[new Date(s.t).toISOString(),s.exp??'',s.pct??'',s.okExp?s.expGain:'',s.event??'',s.meso??'',s.okMeso?s.mesoGain:'',JSON.stringify(s.rawExp||''),JSON.stringify(s.rawMeso||''),[s.note,s.noteM].filter(Boolean).join(' | ')].join(';'));
-  return [head,...rows].join('\n');
-}
-$('btnCopy').onclick=async()=>{ try{ await navigator.clipboard.writeText(toCSV()); toast('Skopiowano CSV'); }catch(e){ toast('Nie udało się skopiować'); } };
-$('btnCsv').onclick=()=>{ const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([toCSV()],{type:'text/csv'})); a.download='maple-'+((state.map||'sesja').replace(/[^\w\-ąćęłńóśźżĄĆĘŁŃÓŚŹŻ]+/g,'_'))+'-'+new Date().toISOString().slice(0,16).replace(':','-')+'.csv'; a.click(); };
-
-// ====================== Init ======================
-migrate();
-showWin('setup',state.ui.setup);
-renderHist();
-$('interval').value=state.interval; $('hpmpInterval').value=state.hpmpInterval; $('window').value=state.windowMin;
-$('thrMode').value=state.thrMode; $('thrVal').value=state.thrVal; $('thrVal').disabled=state.thrMode!=='manual';
-$('invert').checked=state.invert;
-if(!navigator.mediaDevices?.getDisplayMedia){ $('previewHint').innerHTML='Ta przeglądarka nie obsługuje udostępniania ekranu.<br>Otwórz plik w Chrome lub Edge na komputerze.'; $('btnCapture').disabled=true; }
-render();
-window.addEventListener('resize',render);
 </script>
 </body>
 </html>
