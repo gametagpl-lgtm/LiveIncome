@@ -1,0 +1,638 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Maple Tracker – EXP/h i Mezo/h</title>
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+<style>
+  :root{
+    --bg:#14171c; --panel:#1d2128; --panel2:#252a33; --line:#323845; --text:#e7e9ee; --muted:#9aa3b2;
+    --exp:#c9d64a; --meso:#f2b84b; --hp:#e2524a; --mp:#3f8fe0; --ok:#4cc38a; --bad:#e2524a;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);font:14px/1.45 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+  header{display:flex;align-items:center;gap:12px;padding:14px 20px;border-bottom:1px solid var(--line);background:var(--panel)}
+  header h1{font-size:18px;margin:0;font-weight:700;letter-spacing:.2px}
+  header .status{margin-left:auto;display:flex;align-items:center;gap:8px;color:var(--muted)}
+  .dot{width:10px;height:10px;border-radius:50%;background:#555}
+  .dot.on{background:var(--ok);box-shadow:0 0 8px var(--ok)}
+  main{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(0,1fr);gap:16px;padding:16px 20px;max-width:1500px;margin:0 auto}
+  @media (max-width:1000px){main{grid-template-columns:1fr}}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px}
+  .card h2{font-size:13px;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);margin:0 0 10px}
+  button,select,input[type=number]{background:var(--panel2);color:var(--text);border:1px solid var(--line);border-radius:7px;padding:7px 11px;font:inherit;cursor:pointer}
+  button:hover{border-color:#4a5263}
+  button.primary{background:#2f6fd0;border-color:#2f6fd0}
+  button.danger{background:#5a2525;border-color:#7a3232}
+  button.sel-exp.active{outline:2px solid var(--exp)}
+  button.sel-meso.active{outline:2px solid var(--meso)}
+  button:disabled{opacity:.45;cursor:not-allowed}
+  .row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+  .row + .row{margin-top:8px}
+  #previewWrap{position:relative;margin-top:10px;background:#000;border-radius:8px;overflow:hidden;min-height:120px}
+  #preview{display:block;width:100%;cursor:crosshair}
+  #previewHint{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--muted);pointer-events:none;text-align:center;padding:20px}
+  .stats{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+  .stat{background:var(--panel2);border-radius:8px;padding:10px 12px;border-left:3px solid var(--line)}
+  .stat.exp{border-left-color:var(--exp)} .stat.meso{border-left-color:var(--meso)}
+  .stat .lbl{color:var(--muted);font-size:12px}
+  .stat .val{font-size:22px;font-weight:700;font-variant-numeric:tabular-nums}
+  .stat .sub{color:var(--muted);font-size:12px;font-variant-numeric:tabular-nums}
+  .ocrbox{display:grid;grid-template-columns:70px 1fr;gap:6px 10px;align-items:center;margin-top:8px}
+  .ocrbox canvas{max-width:100%;image-rendering:pixelated;background:#fff;border-radius:4px;max-height:60px}
+  .muted{color:var(--muted)}
+  .mono{font-family:ui-monospace,Consolas,monospace}
+  table{width:100%;border-collapse:collapse;font-size:12.5px;font-variant-numeric:tabular-nums}
+  th,td{padding:5px 6px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
+  th:first-child,td:first-child{text-align:left}
+  td.bad{color:var(--bad)} td.ok{color:var(--ok)}
+  .tablewrap{max-height:320px;overflow:auto}
+  canvas.chart{width:100%;height:150px;display:block;background:var(--panel2);border-radius:8px}
+  label.inline{display:flex;align-items:center;gap:6px;color:var(--muted)}
+  .tag{display:inline-block;padding:1px 7px;border-radius:10px;font-size:11px;background:var(--panel2);border:1px solid var(--line)}
+  .help{color:var(--muted);font-size:13px}
+  .help ol{margin:6px 0 0 18px;padding:0}
+  .x{background:none;border:none;color:var(--muted);padding:0 4px;cursor:pointer}
+  .x:hover{color:var(--bad)}
+  #toast{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);background:#000c;padding:8px 14px;border-radius:8px;display:none}
+</style>
+</head>
+<body>
+<header>
+  <h1>🍁 Maple Tracker</h1>
+  <span class="muted">EXP/h i mezo/h z ekranu MapleStory Classic</span>
+  <div class="status"><span class="dot" id="capDot"></span><span id="capStatus">Brak przechwytywania</span></div>
+</header>
+
+<main>
+  <!-- LEWA KOLUMNA -->
+  <section style="display:flex;flex-direction:column;gap:16px;min-width:0">
+    <div class="card">
+      <h2>1. Ekran i regiony</h2>
+      <div class="row">
+        <button class="primary" id="btnCapture">Udostępnij okno gry</button>
+        <button class="sel-exp" id="btnSelExp" disabled>Zaznacz pasek EXP</button>
+        <button class="sel-meso" id="btnSelMeso" disabled>Zaznacz mezo (ekwipunek)</button>
+        <button id="btnClearMeso" disabled>Bez mezo</button>
+      </div>
+      <div id="previewWrap">
+        <canvas id="preview"></canvas>
+        <div id="previewHint">Kliknij „Udostępnij okno gry” i wybierz okno MapleStory.<br>Potem przeciągnij myszą prostokąt wokół tekstu EXP (np. <span class="mono">200.287[39.24%]</span>).</div>
+      </div>
+      <div class="ocrbox">
+        <span class="tag" style="border-color:var(--exp)">EXP</span>
+        <div><canvas id="procExp" height="1"></canvas><div class="mono muted" id="ocrExpTxt">—</div></div>
+        <span class="tag" style="border-color:var(--meso)">Mezo</span>
+        <div><canvas id="procMeso" height="1"></canvas><div class="mono muted" id="ocrMesoTxt">—</div></div>
+      </div>
+      <div class="row" style="margin-top:10px">
+        <button id="btnTest" disabled>Testowy odczyt</button>
+        <label class="inline">Próg
+          <select id="thrMode">
+            <option value="auto">auto (Otsu)</option>
+            <option value="manual">ręczny</option>
+          </select>
+        </label>
+        <input type="number" id="thrVal" value="150" min="0" max="255" style="width:70px" disabled>
+        <label class="inline"><input type="checkbox" id="invert"> odwróć kolory</label>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>3. Wykres</h2>
+      <canvas class="chart" id="chartExp"></canvas>
+      <div style="height:8px"></div>
+      <canvas class="chart" id="chartMeso"></canvas>
+    </div>
+
+    <div class="card">
+      <h2>Odczyty</h2>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>Czas</th><th>EXP</th><th>%</th><th>+EXP</th><th>Mezo</th><th>+Mezo</th><th>OCR</th><th></th></tr></thead>
+          <tbody id="samples"></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- PRAWA KOLUMNA -->
+  <section style="display:flex;flex-direction:column;gap:16px;min-width:0">
+    <div class="card">
+      <h2>2. Sesja</h2>
+      <div class="row">
+        <button class="primary" id="btnStart" disabled>▶ Start</button>
+        <button id="btnNow" disabled>Odczytaj teraz</button>
+        <label class="inline">co
+          <select id="interval">
+            <option value="30">30 s</option>
+            <option value="60">1 min</option>
+            <option value="120" selected>2 min</option>
+            <option value="180">3 min</option>
+            <option value="300">5 min</option>
+            <option value="600">10 min</option>
+          </select>
+        </label>
+        <span class="muted" id="nextIn"></span>
+      </div>
+      <div class="row">
+        <label class="inline">Okno „ostatnie”
+          <select id="window">
+            <option value="10">10 min</option>
+            <option value="30" selected>30 min</option>
+            <option value="60">60 min</option>
+          </select>
+        </label>
+        <button id="btnCopy">Kopiuj CSV</button>
+        <button id="btnCsv">Pobierz CSV</button>
+        <button class="danger" id="btnReset">Reset sesji</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Statystyki</h2>
+      <div class="stats">
+        <div class="stat exp"><div class="lbl">EXP / h (cała sesja)</div><div class="val" id="sExpH">—</div><div class="sub" id="sExpPctH">—</div></div>
+        <div class="stat exp"><div class="lbl">EXP / h (ostatnie <span class="wlbl">30</span> min)</div><div class="val" id="sExpHw">—</div><div class="sub" id="sExpPctHw">—</div></div>
+        <div class="stat meso"><div class="lbl">Mezo / h (cała sesja, netto)</div><div class="val" id="sMesoH">—</div><div class="sub" id="sMesoGross">—</div></div>
+        <div class="stat meso"><div class="lbl">Mezo / h (ostatnie <span class="wlbl">30</span> min)</div><div class="val" id="sMesoHw">—</div><div class="sub">&nbsp;</div></div>
+        <div class="stat exp"><div class="lbl">Zdobyty EXP</div><div class="val" id="sExpTot">—</div><div class="sub" id="sLvl">—</div></div>
+        <div class="stat exp"><div class="lbl">Do następnego poziomu</div><div class="val" id="sEta">—</div><div class="sub" id="sReq">—</div></div>
+        <div class="stat meso"><div class="lbl">Zdobyte mezo (netto)</div><div class="val" id="sMesoTot">—</div><div class="sub" id="sMesoNow">—</div></div>
+        <div class="stat"><div class="lbl">Czas sesji</div><div class="val" id="sTime">—</div><div class="sub" id="sSamples">—</div></div>
+      </div>
+    </div>
+
+    <div class="card help">
+      <h2>Jak używać</h2>
+      <ol>
+        <li>Otwórz ten plik w <b>Chrome / Edge</b> (zwykła karta, nie podgląd).</li>
+        <li>„Udostępnij okno gry” → wybierz okno MapleStory.</li>
+        <li>„Zaznacz pasek EXP” i przeciągnij prostokąt <b>ciasno</b> wokół <span class="mono">200.287[39.24%]</span> (bez napisu „EXP”).</li>
+        <li>Mezo jest widoczne tylko w ekwipunku (klawisz I) — zostaw go otwartego i zaznacz liczbę mezo. Jeśli nie chcesz liczyć mezo, kliknij „Bez mezo”.</li>
+        <li>„Testowy odczyt” — sprawdź, czy tekst pod podglądem jest poprawny. Jeśli nie: zmień próg lub zaznacz region ciaśniej.</li>
+        <li>▶ Start. Kartę można zminimalizować — odczyty lecą dalej.</li>
+      </ol>
+      <p style="margin:8px 0 0">Aplikacja sama wykrywa awans (spadek % przy wyższym wymaganym EXP) oraz śmierć (utrata EXP). Błędne odczyty OCR są odrzucane i oznaczone na czerwono; pojedynczy odczyt możesz usunąć ✕. Regiony i sesja zapisują się w przeglądarce.</p>
+    </div>
+  </section>
+</main>
+<div id="toast"></div>
+<video id="video" autoplay muted playsinline style="display:none"></video>
+
+<script>
+// ====================== Stan ======================
+const $ = id => document.getElementById(id);
+const LS_KEY = 'mapleTracker.v1';
+let stream = null, track = null, imageCapture = null;
+let lastFrame = null;           // ImageBitmap / canvas z ostatnią klatką
+let selecting = null;           // 'exp' | 'meso' | null
+let dragStart = null, dragRect = null;
+let running = false, timer = null, nextAt = 0, busy = false;
+let worker = null;
+
+const state = load() || {
+  regions: { exp: null, meso: null },  // znormalizowane {x,y,w,h} 0..1
+  thrMode: 'auto', thrVal: 150, invert: false,
+  interval: 120, windowMin: 30,
+  samples: [],      // {t, rawExp, rawMeso, exp, pct, req, expGain, event, okExp, meso, mesoGain, okMeso}
+  levelUps: 0, deaths: 0,
+};
+
+function save(){ try{ localStorage.setItem(LS_KEY, JSON.stringify(state)); }catch(e){} }
+function load(){ try{ return JSON.parse(localStorage.getItem(LS_KEY)); }catch(e){ return null; } }
+
+// ====================== Formatowanie ======================
+const nf = new Intl.NumberFormat('pl-PL');
+function fmt(n){ if(n==null||!isFinite(n)) return '—'; return nf.format(Math.round(n)); }
+function fmtShort(n){
+  if(n==null||!isFinite(n)) return '—';
+  const a=Math.abs(n);
+  if(a>=1e9) return (n/1e9).toFixed(2)+' mld';
+  if(a>=1e6) return (n/1e6).toFixed(2)+' mln';
+  if(a>=1e4) return (n/1e3).toFixed(1)+' tys.';
+  return fmt(n);
+}
+function fmtDur(ms){
+  if(ms==null||!isFinite(ms)||ms<0) return '—';
+  const s=Math.round(ms/1000), h=Math.floor(s/3600), m=Math.floor(s%3600/60), sec=s%60;
+  return h? `${h} h ${String(m).padStart(2,'0')} min` : `${m} min ${String(sec).padStart(2,'0')} s`;
+}
+function hhmm(t){ return new Date(t).toLocaleTimeString('pl-PL',{hour:'2-digit',minute:'2-digit',second:'2-digit'}); }
+function toast(msg){ const el=$('toast'); el.textContent=msg; el.style.display='block'; clearTimeout(toast._t); toast._t=setTimeout(()=>el.style.display='none',2500); }
+
+// ====================== Przechwytywanie ekranu ======================
+$('btnCapture').onclick = async () => {
+  try{
+    stream = await navigator.mediaDevices.getDisplayMedia({ video:{ frameRate: 5 }, audio:false });
+  }catch(e){ toast('Nie udostępniono ekranu: '+e.message); return; }
+  track = stream.getVideoTracks()[0];
+  try{ track.contentHint = 'text'; }catch(e){}
+  $('video').srcObject = stream;
+  imageCapture = ('ImageCapture' in window) ? new ImageCapture(track) : null;
+  track.addEventListener('ended', onCaptureEnded);
+  setCapUI(true);
+  await new Promise(r => setTimeout(r, 600));
+  await grab();
+  drawPreview();
+  ['btnSelExp','btnSelMeso','btnClearMeso','btnTest','btnStart','btnNow'].forEach(id=>$(id).disabled=false);
+  if(!state.regions.exp){ setSelecting('exp'); toast('Przeciągnij prostokąt wokół tekstu EXP'); }
+  // odświeżaj podgląd co 2 s, gdy karta jest widoczna
+  clearInterval(window._pv);
+  window._pv = setInterval(async()=>{ if(!document.hidden && !busy){ await grab(); drawPreview(); } }, 2000);
+};
+
+function onCaptureEnded(){
+  setCapUI(false);
+  stopSession();
+  stream = null; track = null; imageCapture = null;
+  ['btnSelExp','btnSelMeso','btnClearMeso','btnTest','btnStart','btnNow'].forEach(id=>$(id).disabled=true);
+  toast('Przechwytywanie zakończone');
+}
+function setCapUI(on){ $('capDot').classList.toggle('on',on); $('capStatus').textContent = on ? 'Przechwytywanie aktywne' : 'Brak przechwytywania'; $('previewHint').style.display = on?'none':'flex'; }
+
+async function grab(){
+  if(!track || track.readyState!=='live') return null;
+  try{
+    if(imageCapture){ lastFrame = await imageCapture.grabFrame(); return lastFrame; }
+  }catch(e){ /* fallback poniżej */ }
+  const v=$('video');
+  if(!v.videoWidth) return null;
+  const c=document.createElement('canvas'); c.width=v.videoWidth; c.height=v.videoHeight;
+  c.getContext('2d').drawImage(v,0,0); lastFrame=c; return c;
+}
+
+// ====================== Podgląd i zaznaczanie ======================
+const pv = $('preview'), pctx = pv.getContext('2d');
+function drawPreview(){
+  if(!lastFrame) return;
+  const W=lastFrame.width, H=lastFrame.height;
+  if(pv.width!==W||pv.height!==H){ pv.width=W; pv.height=H; }
+  pctx.drawImage(lastFrame,0,0);
+  const lw=Math.max(2,W/500);
+  const drawR=(r,col,label)=>{ if(!r) return; pctx.strokeStyle=col; pctx.lineWidth=lw; pctx.strokeRect(r.x*W,r.y*H,r.w*W,r.h*H); pctx.fillStyle=col; pctx.font=`bold ${Math.max(12,W/90)}px sans-serif`; pctx.fillText(label,r.x*W,r.y*H-4); };
+  drawR(state.regions.exp,'#c9d64a','EXP');
+  drawR(state.regions.meso,'#f2b84b','MEZO');
+  if(dragRect) drawR(dragRect, selecting==='exp'?'#c9d64a':'#f2b84b','…');
+}
+function setSelecting(kind){
+  selecting = (selecting===kind)?null:kind;
+  $('btnSelExp').classList.toggle('active',selecting==='exp');
+  $('btnSelMeso').classList.toggle('active',selecting==='meso');
+}
+$('btnSelExp').onclick=()=>setSelecting('exp');
+$('btnSelMeso').onclick=()=>setSelecting('meso');
+$('btnClearMeso').onclick=()=>{ state.regions.meso=null; save(); drawPreview(); toast('Mezo nie będzie liczone'); };
+
+function evPos(e){ const r=pv.getBoundingClientRect(); return { x:(e.clientX-r.left)/r.width, y:(e.clientY-r.top)/r.height }; }
+pv.addEventListener('mousedown',e=>{ if(!selecting||!lastFrame) return; dragStart=evPos(e); dragRect=null; });
+pv.addEventListener('mousemove',e=>{ if(!dragStart) return; const p=evPos(e);
+  dragRect={x:Math.min(p.x,dragStart.x),y:Math.min(p.y,dragStart.y),w:Math.abs(p.x-dragStart.x),h:Math.abs(p.y-dragStart.y)}; drawPreview(); });
+window.addEventListener('mouseup',async()=>{
+  if(!dragStart) return; dragStart=null;
+  if(dragRect && dragRect.w>0.003 && dragRect.h>0.003){
+    state.regions[selecting]=dragRect; save();
+    const k=selecting; setSelecting(k); // wyłącz tryb
+    dragRect=null; drawPreview();
+    await testRead();
+  } else { dragRect=null; drawPreview(); }
+});
+
+// ====================== Przetwarzanie obrazu ======================
+const SCALE = 4;
+function cropProcess(frame, region, outCanvas){
+  const W=frame.width, H=frame.height;
+  const sx=Math.round(region.x*W), sy=Math.round(region.y*H);
+  const sw=Math.max(1,Math.round(region.w*W)), sh=Math.max(1,Math.round(region.h*H));
+  const pad=8*SCALE;
+  const c=outCanvas||document.createElement('canvas');
+  c.width=sw*SCALE+pad*2; c.height=sh*SCALE+pad*2;
+  const ctx=c.getContext('2d',{willReadFrequently:true});
+  ctx.imageSmoothingEnabled=true; ctx.imageSmoothingQuality='high';
+  // najpierw sam wycinek, żeby policzyć próg
+  const tmp=document.createElement('canvas'); tmp.width=sw*SCALE; tmp.height=sh*SCALE;
+  const tctx=tmp.getContext('2d',{willReadFrequently:true});
+  tctx.imageSmoothingEnabled=true; tctx.imageSmoothingQuality='high';
+  tctx.drawImage(frame,sx,sy,sw,sh,0,0,tmp.width,tmp.height);
+  const img=tctx.getImageData(0,0,tmp.width,tmp.height), d=img.data, n=d.length/4;
+  const lum=new Uint8Array(n);
+  for(let i=0;i<n;i++){ const r=d[i*4],g=d[i*4+1],b=d[i*4+2]; lum[i]=Math.max(r,g,b)*0.5+(0.299*r+0.587*g+0.114*b)*0.5; }
+  const thr = state.thrMode==='manual' ? +state.thrVal : otsu(lum);
+  let bright=0; for(let i=0;i<n;i++) if(lum[i]>thr) bright++;
+  // tekst = klasa mniejszościowa; Tesseract chce czarny tekst na białym tle
+  let textIsBright = bright < n/2;
+  if(state.invert) textIsBright=!textIsBright;
+  for(let i=0;i<n;i++){
+    const isText = textIsBright ? lum[i]>thr : lum[i]<=thr;
+    const v = isText?0:255; d[i*4]=d[i*4+1]=d[i*4+2]=v; d[i*4+3]=255;
+  }
+  tctx.putImageData(img,0,0);
+  ctx.fillStyle='#fff'; ctx.fillRect(0,0,c.width,c.height);
+  ctx.drawImage(tmp,pad,pad);
+  return c;
+}
+function otsu(lum){
+  const hist=new Array(256).fill(0); for(const v of lum) hist[v]++;
+  const total=lum.length; let sum=0; for(let i=0;i<256;i++) sum+=i*hist[i];
+  let sumB=0,wB=0,best=0,thr=127;
+  for(let t=0;t<256;t++){ wB+=hist[t]; if(!wB) continue; const wF=total-wB; if(!wF) break;
+    sumB+=t*hist[t]; const mB=sumB/wB, mF=(sum-sumB)/wF, between=wB*wF*(mB-mF)**2;
+    if(between>best){best=between;thr=t;} }
+  return thr;
+}
+$('thrMode').onchange=e=>{ state.thrMode=e.target.value; $('thrVal').disabled=state.thrMode!=='manual'; save(); };
+$('thrVal').onchange=e=>{ state.thrVal=+e.target.value; save(); };
+$('invert').onchange=e=>{ state.invert=e.target.checked; save(); };
+
+// ====================== OCR ======================
+async function getWorker(){
+  if(worker) return worker;
+  if(!window.Tesseract) throw new Error('Nie załadowano Tesseract.js (brak internetu?)');
+  $('capStatus').textContent='Ładowanie OCR…';
+  worker = await Tesseract.createWorker('eng', 1);
+  $('capStatus').textContent= track? 'Przechwytywanie aktywne':'Brak przechwytywania';
+  return worker;
+}
+async function ocr(canvas, whitelist){
+  const w=await getWorker();
+  await w.setParameters({ tessedit_char_whitelist: whitelist, tessedit_pageseg_mode: '7' });
+  const { data } = await w.recognize(canvas);
+  return data.text.trim();
+}
+
+// Parsowanie "200.287[39.24%]" -> {exp:200287, pct:39.24}
+function parseExp(txt){
+  let s=txt.replace(/\s+/g,'').replace(/[{(]/g,'[').replace(/[})]/g,']');
+  let expStr, pctStr;
+  let m=s.match(/^([\d.,]+)\[([\d.,]+)%?\]?/);
+  if(m){ expStr=m[1]; pctStr=m[2]; }
+  else{
+    // brak nawiasu: szukamy końcówki "dd.dd%" lub "dd.dd]"
+    m=s.match(/^([\d.,]+?)[\[1lI|]?(\d{1,2}[.,]\d{2})[%\]]+$/);
+    if(m){ expStr=m[1]; pctStr=m[2]; }
+    else{ m=s.match(/^([\d.,]+)$/); if(m) expStr=m[1]; }
+  }
+  if(!expStr) return null;
+  const exp=parseInt(expStr.replace(/[^\d]/g,''),10);
+  if(!isFinite(exp)) return null;
+  let pct=null;
+  if(pctStr){ pct=parseFloat(pctStr.replace(',','.')); if(!(pct>=0&&pct<100)) pct=null; }
+  return { exp, pct };
+}
+function parseMeso(txt){
+  const digits=txt.replace(/[^\d]/g,'');
+  if(!digits) return null;
+  const v=parseInt(digits,10);
+  return isFinite(v)?v:null;
+}
+
+async function readRegions(frame, showPreview=true){
+  const out={};
+  if(state.regions.exp){
+    const c=cropProcess(frame,state.regions.exp, showPreview?$('procExp'):null);
+    out.rawExp=await ocr(c,'0123456789.,[]%');
+    out.expParsed=parseExp(out.rawExp);
+  }
+  if(state.regions.meso){
+    const c=cropProcess(frame,state.regions.meso, showPreview?$('procMeso'):null);
+    out.rawMeso=await ocr(c,'0123456789,.');
+    out.meso=parseMeso(out.rawMeso);
+  }
+  if(showPreview){
+    $('ocrExpTxt').textContent = state.regions.exp ? `„${out.rawExp}” → ${out.expParsed? fmt(out.expParsed.exp)+' EXP, '+(out.expParsed.pct??'?')+'%' : 'nie rozpoznano'}` : 'region nie zaznaczony';
+    $('ocrMesoTxt').textContent = state.regions.meso ? `„${out.rawMeso}” → ${out.meso!=null? fmt(out.meso)+' mezo':'nie rozpoznano'}` : 'nie liczone';
+  }
+  return out;
+}
+
+async function testRead(){
+  if(busy) return; busy=true;
+  try{ await grab(); drawPreview(); if(lastFrame) await readRegions(lastFrame); }
+  catch(e){ toast(e.message); }
+  finally{ busy=false; }
+}
+$('btnTest').onclick=testRead;
+
+// ====================== Logika próbek ======================
+function lastGood(key){ for(let i=state.samples.length-1;i>=0;i--){ const s=state.samples[i]; if(key==='exp'&&s.okExp) return s; if(key==='meso'&&s.okMeso) return s; } return null; }
+
+function knownReq(){ // ostatnie zaufane wymaganie EXP na poziom
+  for(let i=state.samples.length-1;i>=0;i--){ const s=state.samples[i]; if(s.okExp&&s.req) return s.req; }
+  return null;
+}
+
+function evaluateExp(sample, parsed){
+  sample.okExp=false; sample.expGain=0;
+  if(!parsed) { sample.note='EXP: brak odczytu'; return; }
+  const {exp,pct}=parsed;
+  sample.exp=exp; sample.pct=pct;
+  const reqEst = (pct!=null && pct>=0.5) ? exp/(pct/100) : null;
+  const prev=lastGood('exp');
+  const prevReq=knownReq();
+  sample.req = reqEst ?? prevReq;
+
+  if(!prev){ // pierwszy odczyt – tylko punkt odniesienia
+    if(pct==null && exp===0){ sample.note='EXP: podejrzany odczyt'; return; }
+    sample.okExp=true; sample.event='start'; return;
+  }
+  const prevPct=prev.pct;
+  // kontrola spójności: na tym samym poziomie wymagany EXP się nie zmienia
+  const sameLevelConsistent = !(reqEst && prevReq && pct>=2) || Math.abs(reqEst-prevReq)/prevReq < 0.03;
+
+  if(exp>=prev.exp && (pct==null || prevPct==null || pct>=prevPct-0.01)){
+    if(!sameLevelConsistent){ sample.note='EXP: niespójny z % (błąd OCR?)'; return; }
+    // odrzuć absurdalne skoki (> 60% poziomu na jeden odczyt)
+    if(prevReq && exp-prev.exp > prevReq*0.6){ sample.note='EXP: zbyt duży skok'; return; }
+    sample.expGain=exp-prev.exp; sample.okExp=true; return;
+  }
+  // spadek: awans albo śmierć
+  const pctDrop = (prevPct!=null && pct!=null) ? prevPct-pct : null;
+  const looksLevelUp = (reqEst && prevReq && reqEst > prevReq*1.01) || (pct!=null && pct<5 && prevPct!=null && prevPct>50) || (pctDrop!=null && pctDrop>20);
+  if(looksLevelUp){
+    const toLevel = (prevReq? prevReq - prev.exp : 0);
+    sample.expGain = Math.max(0,toLevel) + exp;
+    sample.event='levelup'; sample.okExp=true; state.levelUps++; return;
+  }
+  if(sameLevelConsistent && pctDrop!=null && pctDrop>0 && pctDrop<=20){
+    sample.expGain = exp-prev.exp; // ujemny
+    sample.event='death'; sample.okExp=true; state.deaths++; return;
+  }
+  sample.note='EXP: spadek bez wyjaśnienia (błąd OCR?)';
+}
+
+function evaluateMeso(sample, meso){
+  sample.okMeso=false; sample.mesoGain=0;
+  if(meso==null){ if(state.regions.meso) sample.noteM='Mezo: brak odczytu'; return; }
+  sample.meso=meso;
+  const prev=lastGood('meso');
+  if(!prev){ sample.okMeso=true; return; }
+  const dl=String(meso).length - String(prev.meso).length;
+  if(Math.abs(dl)>1){ sample.noteM='Mezo: zmiana liczby cyfr (błąd OCR?)'; return; }
+  sample.mesoGain=meso-prev.meso; sample.okMeso=true;
+}
+
+async function takeSample(){
+  if(busy||!track) return; busy=true;
+  try{
+    const frame=await grab(); if(!frame) throw new Error('Brak klatki');
+    if(!document.hidden) drawPreview();
+    const r=await readRegions(frame, !document.hidden);
+    const s={ t:Date.now(), rawExp:r.rawExp??'', rawMeso:r.rawMeso??'' };
+    if(state.regions.exp) evaluateExp(s, r.expParsed);
+    if(state.regions.meso) evaluateMeso(s, r.meso);
+    state.samples.push(s); save(); render();
+  }catch(e){ toast('Błąd odczytu: '+e.message); }
+  finally{ busy=false; }
+}
+
+// ====================== Sesja ======================
+function startSession(){
+  if(!state.regions.exp && !state.regions.meso){ toast('Najpierw zaznacz region EXP'); return; }
+  running=true; $('btnStart').textContent='⏸ Pauza';
+  takeSample();
+  scheduleNext();
+}
+function scheduleNext(){
+  clearTimeout(timer);
+  if(!running) return;
+  nextAt=Date.now()+state.interval*1000;
+  timer=setTimeout(async()=>{ await takeSample(); scheduleNext(); }, state.interval*1000);
+}
+function stopSession(){ running=false; clearTimeout(timer); $('btnStart').textContent='▶ Start'; $('nextIn').textContent=''; }
+$('btnStart').onclick=()=> running? stopSession(): startSession();
+$('btnNow').onclick=()=>takeSample();
+$('interval').onchange=e=>{ state.interval=+e.target.value; save(); if(running) scheduleNext(); };
+$('window').onchange=e=>{ state.windowMin=+e.target.value; save(); render(); };
+$('btnReset').onclick=()=>{
+  if($('btnReset').dataset.confirm!=='1'){ $('btnReset').dataset.confirm='1'; $('btnReset').textContent='Na pewno? Kliknij ponownie'; setTimeout(()=>{ $('btnReset').dataset.confirm=''; $('btnReset').textContent='Reset sesji'; },3000); return; }
+  $('btnReset').dataset.confirm=''; $('btnReset').textContent='Reset sesji';
+  state.samples=[]; state.levelUps=0; state.deaths=0; save(); render(); toast('Sesja wyzerowana');
+};
+setInterval(()=>{ if(running) $('nextIn').textContent='następny za '+Math.max(0,Math.ceil((nextAt-Date.now())/1000))+' s'; if(state.samples.length) renderTime(); },1000);
+
+// ====================== Statystyki ======================
+function rate(samples, key, fromT){
+  const okKey = key==='exp'?'okExp':'okMeso', gKey = key==='exp'?'expGain':'mesoGain';
+  const good = samples.filter(s=>s[okKey]);
+  if(good.length<2) return null;
+  // punkt startowy: ostatni dobry odczyt przed/na fromT, albo pierwszy
+  let startIdx=0;
+  if(fromT){ for(let i=0;i<good.length;i++){ if(good[i].t<=fromT) startIdx=i; } }
+  const seg=good.slice(startIdx);
+  if(seg.length<2) return null;
+  const gain=seg.slice(1).reduce((a,s)=>a+s[gKey],0);
+  const hours=(seg[seg.length-1].t-seg[0].t)/3.6e6;
+  if(hours<=0) return null;
+  return { gain, hours, perH: gain/hours, gross: seg.slice(1).reduce((a,s)=>a+Math.max(0,s[gKey]),0)/hours };
+}
+
+function renderTime(){
+  const S=state.samples; if(!S.length) return;
+  const end = running? Date.now() : S[S.length-1].t;
+  $('sTime').textContent=fmtDur(end-S[0].t);
+}
+
+function render(){
+  const S=state.samples;
+  document.querySelectorAll('.wlbl').forEach(e=>e.textContent=state.windowMin);
+  const fromT=Date.now()-state.windowMin*60000;
+  const eAll=rate(S,'exp'), eWin=rate(S,'exp',fromT), mAll=rate(S,'meso'), mWin=rate(S,'meso',fromT);
+  const req=knownReq(); const lg=lastGood('exp');
+
+  $('sExpH').textContent=eAll?fmtShort(eAll.perH):'—';
+  $('sExpPctH').textContent=(eAll&&req)? (eAll.perH/req*100).toFixed(2)+' % poziomu / h':'potrzebne ≥2 odczyty';
+  $('sExpHw').textContent=eWin?fmtShort(eWin.perH):'—';
+  $('sExpPctHw').textContent=(eWin&&req)? (eWin.perH/req*100).toFixed(2)+' % poziomu / h':'—';
+  $('sMesoH').textContent=mAll?fmtShort(mAll.perH):(state.regions.meso?'—':'wyłączone');
+  $('sMesoGross').textContent=mAll? 'brutto (bez wydatków): '+fmtShort(mAll.gross)+' / h':'—';
+  $('sMesoHw').textContent=mWin?fmtShort(mWin.perH):'—';
+  $('sExpTot').textContent=eAll?fmt(eAll.gain):'—';
+  $('sLvl').textContent=`awanse: ${state.levelUps} · śmierci: ${state.deaths}`;
+  if(lg && req){
+    const left=req-lg.exp; const r=(eWin||eAll);
+    $('sEta').textContent = r&&r.perH>0 ? fmtDur(left/r.perH*3.6e6) : '—';
+    $('sReq').textContent = `brakuje ${fmt(left)} z ${fmt(req)} EXP`;
+  } else { $('sEta').textContent='—'; $('sReq').textContent='—'; }
+  const lm=lastGood('meso');
+  $('sMesoTot').textContent=mAll?fmt(mAll.gain):'—';
+  $('sMesoNow').textContent=lm? 'teraz: '+fmt(lm.meso):'—';
+  const bad=S.filter(s=>(state.regions.exp&&!s.okExp)||(state.regions.meso&&!s.okMeso)).length;
+  $('sSamples').textContent=`${S.length} odczytów · odrzuconych: ${bad}`;
+  renderTime();
+
+  // tabela
+  const tb=$('samples'); tb.innerHTML='';
+  for(let i=S.length-1;i>=0;i--){
+    const s=S[i]; const tr=document.createElement('tr');
+    const ev = s.event==='levelup'?' ⬆':s.event==='death'?' ☠':'';
+    const notes=[s.note,s.noteM].filter(Boolean).join('; ');
+    tr.innerHTML=`<td>${hhmm(s.t)}${ev}</td>
+      <td class="${s.okExp?'':'bad'}">${s.exp!=null?fmt(s.exp):'—'}</td>
+      <td>${s.pct!=null?s.pct.toFixed(2):'—'}</td>
+      <td class="${s.expGain<0?'bad':s.expGain>0?'ok':''}">${s.okExp?fmt(s.expGain):'—'}</td>
+      <td class="${s.okMeso?'':(state.regions.meso?'bad':'')}">${s.meso!=null?fmt(s.meso):'—'}</td>
+      <td class="${s.mesoGain<0?'bad':s.mesoGain>0?'ok':''}">${s.okMeso?fmt(s.mesoGain):'—'}</td>
+      <td class="mono muted" title="${(notes||'').replace(/"/g,'')}">${notes?'⚠':'✓'}</td>
+      <td><button class="x" data-i="${i}" title="Usuń odczyt">✕</button></td>`;
+    tb.appendChild(tr);
+  }
+  tb.querySelectorAll('.x').forEach(b=>b.onclick=()=>removeSample(+b.dataset.i));
+  drawChart($('chartExp'), S, 'exp', '#c9d64a', 'Zdobyty EXP (skumulowany)');
+  drawChart($('chartMeso'), S, 'meso', '#f2b84b', 'Mezo netto (skumulowane)');
+}
+
+// Usunięcie odczytu wymaga przeliczenia przyrostów od nowa
+function removeSample(i){
+  const raw=state.samples.filter((_,j)=>j!==i);
+  state.samples=[]; state.levelUps=0; state.deaths=0;
+  for(const s of raw){
+    const n={t:s.t, rawExp:s.rawExp, rawMeso:s.rawMeso};
+    if(state.regions.exp || s.exp!=null) evaluateExp(n, s.exp!=null?{exp:s.exp,pct:s.pct}:null);
+    if(state.regions.meso || s.meso!=null) evaluateMeso(n, s.meso??null);
+    state.samples.push(n);
+  }
+  save(); render();
+}
+
+function drawChart(cv, S, key, color, title){
+  const dpr=window.devicePixelRatio||1, W=cv.clientWidth, H=cv.clientHeight;
+  cv.width=W*dpr; cv.height=H*dpr; const c=cv.getContext('2d'); c.scale(dpr,dpr);
+  c.clearRect(0,0,W,H);
+  c.fillStyle='#9aa3b2'; c.font='12px system-ui'; c.fillText(title,10,16);
+  const okKey=key==='exp'?'okExp':'okMeso', gKey=key==='exp'?'expGain':'mesoGain';
+  const pts=[]; let cum=0;
+  for(const s of S){ if(!s[okKey]) continue; cum+=s[gKey]||0; pts.push([s.t,cum]); }
+  if(pts.length<2){ c.fillText('za mało danych',10,40); return; }
+  const t0=pts[0][0], t1=pts[pts.length-1][0];
+  let ymin=Math.min(0,...pts.map(p=>p[1])), ymax=Math.max(...pts.map(p=>p[1])); if(ymax===ymin) ymax=ymin+1;
+  const L=56,R=10,T=26,B=20;
+  const X=t=>L+(t-t0)/(t1-t0||1)*(W-L-R), Y=v=>T+(1-(v-ymin)/(ymax-ymin))*(H-T-B);
+  c.strokeStyle='#323845'; c.lineWidth=1;
+  for(let k=0;k<=2;k++){ const v=ymin+(ymax-ymin)*k/2, y=Y(v); c.beginPath(); c.moveTo(L,y); c.lineTo(W-R,y); c.stroke(); c.fillStyle='#9aa3b2'; c.fillText(fmtShort(v),4,y+4); }
+  c.fillText(hhmm(t0).slice(0,5),L,H-4); const lbl=hhmm(t1).slice(0,5); c.fillText(lbl,W-R-c.measureText(lbl).width,H-4);
+  c.strokeStyle=color; c.lineWidth=2; c.beginPath();
+  pts.forEach((p,i)=>{ const x=X(p[0]),y=Y(p[1]); i?c.lineTo(x,y):c.moveTo(x,y); }); c.stroke();
+  // znaczniki awansów
+  if(key==='exp'){ let cum2=0; for(const s of S){ if(!s.okExp) continue; cum2+=s.expGain||0; if(s.event==='levelup'){ c.fillStyle='#4cc38a'; c.beginPath(); c.arc(X(s.t),Y(cum2),4,0,7); c.fill(); } } }
+}
+
+// ====================== Eksport ======================
+function toCSV(){
+  const head='czas;exp;procent;przyrost_exp;zdarzenie;mezo;przyrost_mezo;ocr_exp;ocr_mezo;uwagi';
+  const rows=state.samples.map(s=>[new Date(s.t).toISOString(),s.exp??'',s.pct??'',s.okExp?s.expGain:'',s.event??'',s.meso??'',s.okMeso?s.mesoGain:'',JSON.stringify(s.rawExp||''),JSON.stringify(s.rawMeso||''),[s.note,s.noteM].filter(Boolean).join(' | ')].join(';'));
+  return [head,...rows].join('\n');
+}
+$('btnCopy').onclick=async()=>{ try{ await navigator.clipboard.writeText(toCSV()); toast('Skopiowano CSV'); }catch(e){ toast('Nie udało się skopiować'); } };
+$('btnCsv').onclick=()=>{ const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([toCSV()],{type:'text/csv'})); a.download='maple-sesja-'+new Date().toISOString().slice(0,16).replace(':','-')+'.csv'; a.click(); };
+
+// ====================== Init ======================
+$('interval').value=state.interval; $('window').value=state.windowMin;
+$('thrMode').value=state.thrMode; $('thrVal').value=state.thrVal; $('thrVal').disabled=state.thrMode!=='manual';
+$('invert').checked=state.invert;
+if(!navigator.mediaDevices?.getDisplayMedia){ $('previewHint').innerHTML='Ta przeglądarka nie obsługuje udostępniania ekranu.<br>Otwórz plik w Chrome lub Edge na komputerze.'; $('btnCapture').disabled=true; }
+render();
+window.addEventListener('resize',render);
+</script>
+</body>
+</html>
