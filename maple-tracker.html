@@ -49,6 +49,8 @@
   .form input{font:600 16px var(--font);color:var(--t1);background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.16);
               border-radius:10px;padding:9px 12px;font-variant-numeric:tabular-nums}
   .form input:focus{outline:2px solid var(--accent);outline-offset:0}
+  .form input.bad{border-color:var(--red);box-shadow:0 0 0 3px rgba(255,69,58,.3);color:#ffb3ad}
+  #fillMsg.ok{color:var(--green)} #fillMsg.bad{color:#ff6b61;font-weight:600}
   .linkbtn{padding:3px 10px;font-size:12px;margin-left:6px}
 
   /* ===== KROK 2: pionowy pasek 80 px ===== */
@@ -107,7 +109,9 @@
     <div class="form">
       <label>EXP do następnego poziomu<input type="number" id="reqIn" min="1" max="999999" step="1" placeholder="np. 500000"></label>
       <label>Maks. EXP na godzinę<input type="number" id="maxIn" min="1000" max="999999" step="1000" placeholder="300000"></label>
+      <label>Aktualny EXP (start)<input type="number" id="startIn" min="0" max="999999" step="1" placeholder="np. 383963"></label>
     </div>
+    <p id="fillMsg" class="hint" style="margin:10px 0 0"></p>
     <p class="hint" id="limitInfo" style="margin-top:10px"></p>
     <p class="hint" id="reqSuggest" style="margin:0"></p>
   </div>
@@ -359,6 +363,8 @@ let readings = [];     // przyjęte pomiary: {t, exp, pct, gain, ev, src}
 const SETTINGS_KEY = 'mapleExpTracker.settings';
 const settings = { req: null, maxH: 300000, reqEstimated: false };
 try { Object.assign(settings, JSON.parse(localStorage.getItem(SETTINGS_KEY)) || {}); } catch (e) {}
+// Startowy EXP wpisany ręcznie — pewny punkt odniesienia dla pierwszych pomiarów (nie zapisujemy go na stałe)
+let startExp = null, startT = 0, startDirty = false;
 function saveSettings(){ try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)); } catch (e) {} }
 let lastAttempt = null; // {t, ok, why, raw}
 let running = false, busy = false, nextAt = 0;
@@ -483,42 +489,79 @@ pv.addEventListener('pointerup', () => {
   dragRect = null; drawPreview(); updateStep1();
 });
 
+// Odczyt testowy: dwa odczyty w odstępie ~1 s, potem automatyczne wpisanie aktualnego EXP
+// i wymaganego EXP (z liczby i %). Niezgodne pola są zaznaczane na czerwono.
 async function testRead(){
   if (!track || !region) return;
-  const f = grab(); if (!f) return;
   el('testRes').textContent = 'Odczytuję…'; el('testRes').className = '';
   el('testCheck').textContent = ''; el('reqSuggest').textContent = '';
   try {
-    const r = await withTimeout(readExp(f, true), OCR_TIMEOUT, 'OCR nie odpowiada');
-    el('testRaw').textContent = `OCR: „${r.raw}” · ${r.mode}`;
-    const A = validExp(r.exp) ? r.exp : null, pctOk = validPct(r.pct);
-    if (A != null || pctOk) {
-      el('testRes').textContent = `${A != null ? fmt(A) + ' EXP' : 'EXP: ✗'} · ${pctOk ? r.pct.toFixed(2) + '%' : '%: ✗'}`;
-      // sprawdzenie zgodności liczby z % przy wpisanym wymaganym EXP
-      const P = pctOk && settings.req ? expFromPct(r.pct) : null;
-      const good = A != null && P != null && agree(A, P);
-      el('testRes').className = good ? 'ok' : (A != null && pctOk ? '' : 'bad');
-      el('testCheck').textContent = P == null ? 'Wpisz wymagany EXP, aby sprawdzić zgodność liczby z %.'
-        : good ? `✓ Z % wychodzi ${fmt(P)} — zgadza się z odczytaną liczbą.`
-        : `⚠ Z % wychodzi ${fmt(P)}, a odczytana liczba to ${A != null ? fmt(A) : '—'}. Sprawdź wymagany EXP.`;
-      el('n4').classList.toggle('done', good);
-      // podpowiedź wymaganego EXP z tego odczytu
-      if (A != null && pctOk && r.pct >= 1) {
-        const est = Math.round(A / (r.pct/100));
-        el('reqSuggest').innerHTML = `Z tego odczytu wynika ≈ <b>${fmt(est)}</b> EXP na poziom (dokładność ±${fmt(est*0.005/r.pct)}).`;
-        const b = document.createElement('button'); b.className = 'linkbtn'; b.textContent = 'Użyj';
-        b.onclick = () => { el('reqIn').value = est; setReq(est); testRead(); };
-        el('reqSuggest').appendChild(b);
-      }
-    } else {
-      el('testRes').textContent = '✗ Nie udało się odczytać EXP ani % — zaznacz pole ciaśniej'; el('testRes').className = 'bad';
-      el('n4').classList.remove('done');
-    }
+    const f1 = grab(); if (!f1) return;
+    const r1 = await withTimeout(readExp(f1, true), OCR_TIMEOUT, 'OCR nie odpowiada');
+    await new Promise(res => setTimeout(res, 1000));
+    const f2 = grab();
+    const r2 = f2 ? await withTimeout(readExp(f2, false), OCR_TIMEOUT, 'OCR nie odpowiada') : null;
+    el('testRaw').textContent = `OCR: „${r1.raw}”${r2 ? ` i „${r2.raw}”` : ''} · ${r1.mode}`;
+    const okNum = validNum(r1.exp), pctOk = validPct(r1.pct);
+    el('testRes').textContent = `${okNum ? fmt(r1.exp) + ' EXP' : 'EXP: ✗'} · ${pctOk ? r1.pct.toFixed(2) + '%' : '%: ✗'}`;
+    el('testRes').className = okNum && pctOk ? 'ok' : 'bad';
+    autofill(r1, r2);
   } catch (e) {
     if (/OCR nie odpowiada/.test(e.message)) resetWorker();
     el('testRes').textContent = '✗ ' + e.message; el('testRes').className = 'bad';
   }
 }
+
+const validNum = x => Number.isInteger(x) && x >= 0 && x <= MAX_EXP;
+const badFields = new Set();
+function markBad(id, bad){
+  el(id).classList.toggle('bad', bad); bad ? badFields.add(id) : badFields.delete(id);
+  // wszystkie czerwone pola poprawione ręcznie → komunikat potwierdzenia
+  if (!badFields.size && el('fillMsg').classList.contains('bad')) {
+    el('fillMsg').textContent = '✓ Wartości poprawione ręcznie.'; el('fillMsg').className = 'hint ok'; el('n4').classList.add('done');
+  }
+}
+
+function autofill(r1, r2){
+  const A = r1.exp, p = r1.pct, why = [];
+  let badStart = false, badReq = false;
+  if (!validNum(A)) { badStart = true; why.push('nie odczytano liczby EXP'); }
+  if (!validPct(p)) { badReq = true; why.push('nie odczytano %'); }
+  // dwa kolejne odczyty muszą dać to samo (w 1 s EXP może urosnąć najwyżej o kilkaset)
+  if (r2) {
+    if (validNum(A) && validNum(r2.exp) && Math.abs(r2.exp - A) > 300) { badStart = true; why.push(`dwa odczyty liczby się różnią (${fmt(A)} / ${fmt(r2.exp)})`); }
+    if (validPct(p) && validPct(r2.pct) && Math.abs(r2.pct - p) > 0.05) { badReq = true; why.push(`dwa odczyty % się różnią (${p.toFixed(2)} / ${r2.pct.toFixed(2)})`); }
+    if (validNum(A) && !validNum(r2.exp)) { badStart = true; why.push('drugi odczyt liczby nieudany'); }
+    if (validPct(p) && !validPct(r2.pct)) { badReq = true; why.push('drugi odczyt % nieudany'); }
+  }
+  let est = null;
+  if (validNum(A) && validPct(p)) {
+    if (p < 1) { badReq = true; why.push('% jest za mały, by dokładnie policzyć wymagany EXP'); }
+    else {
+      est = Math.round(A / (p/100));
+      if (est > MAX_EXP || est < A) { badStart = badReq = true; why.push('liczba EXP i % do siebie nie pasują'); est = null; }
+    }
+  }
+
+  // wpisujemy to, co się da (najlepsze przybliżenie), a niepewne pola zaznaczamy
+  if (validNum(A)) { el('startIn').value = A; startExp = A; startT = Date.now(); startDirty = true; }
+  if (est != null) { el('reqIn').value = est; settings.req = est; settings.reqEstimated = false; saveSettings(); }
+  markBad('startIn', badStart);
+  markBad('reqIn', badReq);
+
+  if (why.length) {
+    el('fillMsg').textContent = `⚠ Wartości się nie zgadzają — popraw ręcznie zaznaczone pola (${why.join('; ')}).`;
+    el('fillMsg').className = 'hint bad';
+    el('n4').classList.remove('done');
+  } else {
+    el('fillMsg').textContent = `✓ Wpisano automatycznie: aktualny EXP ${fmt(A)}, do poziomu ${fmt(est)}. Możesz je poprawić ręcznie.`;
+    el('fillMsg').className = 'hint ok';
+    el('n4').classList.add('done');
+    el('reqSuggest').textContent = `Wymagany EXP policzony z % ma dokładność ok. ±${fmt(est*0.005/p)} — jeśli znasz dokładną wartość, wpisz ją.`;
+  }
+  updateStep1();
+}
+el('btnTest').onclick = testRead;
 
 // ---- ustawienia EXP ----
 function setReq(v){
@@ -528,19 +571,30 @@ function setReq(v){
 function setMaxH(v){ v = Math.round(+v); settings.maxH = v >= 1000 ? v : 300000; saveSettings(); updateStep1(); }
 el('reqIn').value = settings.req ?? '';
 el('maxIn').value = settings.maxH;
-el('reqIn').addEventListener('input', e => setReq(e.target.value));
+el('reqIn').addEventListener('input', e => { setReq(e.target.value); markBad('reqIn', false); updateStep1(); });
 el('maxIn').addEventListener('input', e => setMaxH(e.target.value));
+el('startIn').addEventListener('input', e => {
+  const v = Math.round(+e.target.value);
+  startExp = e.target.value !== '' && v >= 0 && v <= MAX_EXP ? v : null;
+  startT = Date.now(); startDirty = true; markBad('startIn', false); updateStep1();
+});
+// Który odczyt pasuje do startowego EXP? (przyrost od wpisania wartości mieści się w limicie)
+function fitsStart(c){
+  if (c == null || startExp == null) return false;
+  const tol = settings.maxH * (Date.now() - startT) / 3.6e6 * 1.2 + 300;
+  return c - startExp >= 0 && c - startExp <= tol;
+}
 
-el('btnTest').onclick = testRead;
+
 
 function updateStep1(){
   el('n3').classList.toggle('done', settings.req > 0);
-  el('limitInfo').textContent = `Limit: maks. ${fmt(settings.maxH/60)} EXP na minutę. Większe skoki i spadki są traktowane jako błąd OCR — wtedy liczymy EXP z %, a gdy i to nie pasuje, pomiar jest pomijany.`;
+  el('limitInfo').textContent = `Limit: maks. ${fmt(settings.maxH/60)} EXP na minutę. Większe skoki i spadki są traktowane jako błąd OCR — wtedy liczymy EXP z %, a gdy i to nie pasuje, pomiar jest pomijany. Startowy EXP wyznacza pewny punkt odniesienia — bez niego pierwszy pomiar musi mieć zgodną liczbę i %.`;
   if (settings.reqEstimated) el('limitInfo').textContent += ' Wymagany EXP został oszacowany po awansie — sprawdź go.';
   el('reqIn').value = document.activeElement === el('reqIn') ? el('reqIn').value : (settings.req ?? '');
   el('n2').classList.toggle('done', !!region);
   el('btnTest').disabled = !(track && region);
-  el('btnNext').disabled = !(track && region && settings.req > 0);
+  el('btnNext').disabled = !(track && region && settings.req > 0 && badFields.size === 0);
 }
 
 // ============================================================
@@ -764,6 +818,13 @@ function renderBar(){
 function goStep2(){
   el('step1').classList.add('hidden');
   B.bar.classList.remove('hidden');
+  if (startDirty || !readings.length) {
+    if (startExp != null && settings.req && startExp <= settings.req) {
+      readings = [{ t: startT || Date.now(), exp: startExp, pct: startExp / settings.req * 100, gain: 0, ev: 'start', src: 'ręcznie' }];
+      rejectCount = 0; lastAttempt = { t: Date.now(), ok: true, note: 'start z wpisanego EXP' };
+    } else if (startDirty) { readings = []; rejectCount = 0; lastAttempt = null; }
+    startDirty = false;
+  }
   if (!running) { running = true; nextAt = 0; } // pierwszy pomiar od razu
   renderBar();
 }
